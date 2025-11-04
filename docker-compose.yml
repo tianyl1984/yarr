@@ -1,0 +1,19 @@
+
+name: yarr
+
+services:
+  yarr:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: yarr
+    image: yarr:latest
+    ports:
+      - "7070:7070"
+    restart: unless-stopped
+    volumes:
+      - yarr-data:/data
+
+volumes:
+  yarr-data:
+    external: true
