@@ -15,20 +15,20 @@ default: test host
 
 # platform-specific files
 
-etc/icon.icns: etc/icon_macos.png
-	mkdir -p etc/icon.iconset
-	sips -s format png --resampleWidth 1024 etc/icon_macos.png --out etc/icon.iconset/icon_512x512@2x.png
-	sips -s format png --resampleWidth  512 etc/icon_macos.png --out etc/icon.iconset/icon_512x512.png
-	sips -s format png --resampleWidth  256 etc/icon_macos.png --out etc/icon.iconset/icon_256x256.png
-	sips -s format png --resampleWidth  128 etc/icon_macos.png --out etc/icon.iconset/icon_128x128.png
-	sips -s format png --resampleWidth   64 etc/icon_macos.png --out etc/icon.iconset/icon_32x32@2x.png
-	sips -s format png --resampleWidth   32 etc/icon_macos.png --out etc/icon.iconset/icon_32x32.png
-	sips -s format png --resampleWidth   16 etc/icon_macos.png --out etc/icon.iconset/icon_16x16.png
-	iconutil -c icns etc/icon.iconset -o etc/icon.icns
+# etc/icon.icns: etc/icon_macos.png
+# 	mkdir -p etc/icon.iconset
+# 	sips -s format png --resampleWidth 1024 etc/icon_macos.png --out etc/icon.iconset/icon_512x512@2x.png
+# 	sips -s format png --resampleWidth  512 etc/icon_macos.png --out etc/icon.iconset/icon_512x512.png
+# 	sips -s format png --resampleWidth  256 etc/icon_macos.png --out etc/icon.iconset/icon_256x256.png
+# 	sips -s format png --resampleWidth  128 etc/icon_macos.png --out etc/icon.iconset/icon_128x128.png
+# 	sips -s format png --resampleWidth   64 etc/icon_macos.png --out etc/icon.iconset/icon_32x32@2x.png
+# 	sips -s format png --resampleWidth   32 etc/icon_macos.png --out etc/icon.iconset/icon_32x32.png
+# 	sips -s format png --resampleWidth   16 etc/icon_macos.png --out etc/icon.iconset/icon_16x16.png
+# 	iconutil -c icns etc/icon.iconset -o etc/icon.icns
 
-src/platform/versioninfo.rc:
-	./etc/windows_versioninfo.sh -version "$(VERSION)" -outfile src/platform/versioninfo.rc
-	windres -i src/platform/versioninfo.rc -O coff -o src/platform/versioninfo.syso
+# src/platform/versioninfo.rc:
+# 	./etc/windows_versioninfo.sh -version "$(VERSION)" -outfile src/platform/versioninfo.rc
+# 	windres -i src/platform/versioninfo.rc -O coff -o src/platform/versioninfo.syso
 
 # build targets
 
@@ -61,19 +61,19 @@ windows_amd64:
 windows_arm64:
 	CC="zig cc -target aarch64-windows-gnu" GOOS=windows GOARCH=arm64 go build $(GO_FLAGS) -o out/$@/yarr ./cmd/yarr
 
-darwin_arm64_gui: etc/icon.icns
-	GOOS=darwin GOARCH=arm64 go build $(GO_FLAGS_GUI) -o out/$@/yarr ./cmd/yarr
-	./etc/macos_package.sh $(VERSION) etc/icon.icns out/$@/yarr out/$@
+# darwin_arm64_gui: etc/icon.icns
+# 	GOOS=darwin GOARCH=arm64 go build $(GO_FLAGS_GUI) -o out/$@/yarr ./cmd/yarr
+# 	./etc/macos_package.sh $(VERSION) etc/icon.icns out/$@/yarr out/$@
 
-darwin_amd64_gui: etc/icon.icns
-	GOOS=darwin GOARCH=amd64 go build $(GO_FLAGS_GUI) -o out/$@/yarr ./cmd/yarr
-	./etc/macos_package.sh $(VERSION) etc/icon.icns out/$@/yarr out/$@
+# darwin_amd64_gui: etc/icon.icns
+# 	GOOS=darwin GOARCH=amd64 go build $(GO_FLAGS_GUI) -o out/$@/yarr ./cmd/yarr
+# 	./etc/macos_package.sh $(VERSION) etc/icon.icns out/$@/yarr out/$@
 
-windows_amd64_gui: src/platform/versioninfo.rc
-	GOOS=windows GOARCH=amd64 go build $(GO_FLAGS_GUI_WIN) -o out/$@/yarr.exe ./cmd/yarr
+# windows_amd64_gui: src/platform/versioninfo.rc
+# 	GOOS=windows GOARCH=amd64 go build $(GO_FLAGS_GUI_WIN) -o out/$@/yarr.exe ./cmd/yarr
 
-windows_arm64_gui: src/platform/versioninfo.rc
-	GOOS=windows GOARCH=arm64 go build $(GO_FLAGS_GUI_WIN) -o out/$@/yarr.exe ./cmd/yarr
+# windows_arm64_gui: src/platform/versioninfo.rc
+# 	GOOS=windows GOARCH=arm64 go build $(GO_FLAGS_GUI_WIN) -o out/$@/yarr.exe ./cmd/yarr
 
 serve:
 	go run $(GO_FLAGS_DEBUG) ./cmd/yarr -db local.db
