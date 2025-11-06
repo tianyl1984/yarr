@@ -5,7 +5,6 @@ go 1.24.0
 require (
 	github.com/go-sql-driver/mysql v1.9.3
 	golang.org/x/net v0.46.0
-	golang.org/x/sys v0.37.0
 )
 
 require (
