@@ -143,7 +143,7 @@ func (s *Storage) CreateItems(items []Item) bool {
 			)
 			on duplicate key update guid = ?`,
 			item.GUID, item.FeedId, item.Title, item.Link, item.Date,
-			item.Content, item.MediaLinks,
+			truncateStr(item.Content, 500), item.MediaLinks,
 			now, UNREAD, item.GUID,
 		)
 		if err != nil {
