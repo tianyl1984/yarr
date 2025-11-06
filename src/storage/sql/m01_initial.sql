@@ -27,7 +27,7 @@ CREATE TABLE if not exists `feeds` (
 
 CREATE TABLE `items` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `guid` varchar(200) DEFAULT NULL,
+  `guid` varchar(300) DEFAULT NULL,
   `feed_id` bigint NOT NULL,
   `title` varchar(200) DEFAULT NULL,
   `link` varchar(300) DEFAULT NULL,
