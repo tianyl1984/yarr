@@ -2,32 +2,22 @@ package storage
 
 import (
 	"database/sql"
+	_ "embed"
 	"fmt"
 	"log"
-	"time"
 )
 
 var migrations = []func(*sql.Tx) error{
 	m01_initial,
-	m02_feed_states_and_errors,
-	m03_on_delete_actions,
-	m04_item_podcasturl,
-	m05_move_description_to_content,
-	m06_fill_missing_dates,
-	m07_add_feed_size,
-	m08_normalize_datetime,
-	m09_change_item_index,
-	m10_add_item_medialinks,
 }
 
 var maxVersion = int64(len(migrations))
 
 func migrate(db *sql.DB) error {
-	var version int64
-	if err := db.QueryRow("pragma user_version").Scan(&version); err != nil {
+	version, err := getVersion(db)
+	if err != nil {
 		return err
 	}
-
 	if version >= maxVersion {
 		return nil
 	}
@@ -35,31 +25,40 @@ func migrate(db *sql.DB) error {
 	log.Printf("db version is %d. migrating to %d", version, maxVersion)
 
 	for v := version + 1; v <= maxVersion; v++ {
-		// Migrations altering schema using a sequence of steps due to SQLite limitations.
-		// Must come with `pragma foreign_key_check` at the end. See:
-		// "Making Other Kinds Of Table Schema Changes"
-		// https://www.sqlite.org/lang_altertable.html
-		trickyAlteration := (v == 3)
-
 		log.Printf("[migration:%d] starting", v)
-
-		if trickyAlteration {
-			db.Exec("pragma foreign_keys=off;")
-		}
-
 		err := migrateVersion(v, db)
-
-		if trickyAlteration {
-			db.Exec("pragma foreign_keys=on;")
-		}
-
 		if err != nil {
 			return err
 		}
-
 		log.Printf("[migration:%d] done", v)
 	}
 	return nil
+}
+
+func getVersion(db *sql.DB) (int64, error) {
+	exist, err := checkTableExists(db, "settings")
+	if err != nil {
+		return 0, err
+	}
+	var version int64
+	if !exist {
+		version = 0
+	} else {
+		if err := db.QueryRow("select val from settings where `key` = ?", "db_version").Scan(&version); err != nil {
+			return 0, err
+		}
+	}
+	return version, nil
+}
+
+func checkTableExists(db *sql.DB, tableName string) (bool, error) {
+	sql := "select count(1) from information_schema.tables where table_schema = database() and table_name = ?"
+	var count int
+	err := db.QueryRow(sql, tableName).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func migrateVersion(v int64, db *sql.DB) error {
@@ -75,11 +74,6 @@ func migrateVersion(v int64, db *sql.DB) error {
 		tx.Rollback()
 		return err
 	}
-	if _, err = tx.Exec(fmt.Sprintf("pragma user_version = %d", v)); err != nil {
-		log.Printf("[migration:%d] failed to bump version", v)
-		tx.Rollback()
-		return err
-	}
 	if err = tx.Commit(); err != nil {
 		log.Printf("[migration:%d] failed to commit changes", v)
 		return err
@@ -87,245 +81,11 @@ func migrateVersion(v int64, db *sql.DB) error {
 	return nil
 }
 
+//go:embed sql/m01_initial.sql
+var m01_initial_sql string
+
 func m01_initial(tx *sql.Tx) error {
-	sql := `
-		create table if not exists folders (
-		 id             integer primary key autoincrement,
-		 title          text not null,
-		 is_expanded    boolean not null default false
-		);
-
-		create unique index if not exists idx_folder_title on folders(title);
-
-		create table if not exists feeds (
-		 id             integer primary key autoincrement,
-		 folder_id      references folders(id),
-		 title          text not null,
-		 description    text,
-		 link           text,
-		 feed_link      text not null,
-		 icon           blob
-		);
-
-		create index if not exists idx_feed_folder_id on feeds(folder_id);
-		create unique index if not exists idx_feed_feed_link on feeds(feed_link);
-
-		create table if not exists items (
-		 id             integer primary key autoincrement,
-		 guid           string not null,
-		 feed_id        references feeds(id),
-		 title          text,
-		 link           text,
-		 description    text,
-		 content        text,
-		 author         text,
-		 date           datetime,
-		 date_updated   datetime,
-		 date_arrived   datetime,
-		 status         integer,
-		 image          text,
-		 search_rowid   integer
-		);
-
-		create index if not exists idx_item_feed_id on items(feed_id);
-		create index if not exists idx_item_status  on items(status);
-		create index if not exists idx_item_search_rowid on items(search_rowid);
-		create unique index if not exists idx_item_guid on items(feed_id, guid);
-
-		create table if not exists settings (
-		 key            string primary key,
-		 val            blob
-		);
-
-		create virtual table if not exists search using fts4(title, description, content);
-
-		create trigger if not exists del_item_search after delete on items begin
-		  delete from search where rowid = old.search_rowid;
-		end;
-	`
-	_, err := tx.Exec(sql)
-	return err
-}
-
-func m02_feed_states_and_errors(tx *sql.Tx) error {
-	sql := `
-		create table if not exists http_states (
-		 feed_id        references feeds(id) unique,
-		 last_refreshed datetime not null,
-
-		 -- http header fields --
-		 last_modified  string not null,
-		 etag           string not null
-		);
-
-		create table if not exists feed_errors (
-		 feed_id        references feeds(id) unique,
-		 error          string
-		);
-	`
-	_, err := tx.Exec(sql)
-	return err
-}
-
-func m03_on_delete_actions(tx *sql.Tx) error {
-	sql := `
-		-- 01. create altered tables
-		create table if not exists new_feeds (
-		 id             integer primary key autoincrement,
-		 folder_id      references folders(id) on delete set null,
-		 title          text not null,
-		 description    text,
-		 link           text,
-		 feed_link      text not null,
-		 icon           blob
-		);
-		create table if not exists new_items (
-		 id             integer primary key autoincrement,
-		 guid           string not null,
-		 feed_id        references feeds(id) on delete cascade,
-		 title          text,
-		 link           text,
-		 description    text,
-		 content        text,
-		 author         text,
-		 date           datetime,
-		 date_updated   datetime,
-		 date_arrived   datetime,
-		 status         integer,
-		 image          text,
-		 search_rowid   integer
-		);
-		create table if not exists new_http_states (
-		 feed_id        references feeds(id) on delete cascade unique,
-		 last_refreshed datetime not null,
-		 last_modified  string not null,
-		 etag           string not null
-		);
-		create table if not exists new_feed_errors (
-		 feed_id        references feeds(id) on delete cascade unique,
-		 error          string
-		);
-
-		-- 02. transfer data into new tables
-		insert into new_feeds select * from feeds;
-		insert into new_items select * from items;
-		insert into new_http_states select * from http_states;
-		insert into new_feed_errors select * from feed_errors;
-
-		-- 03. drop old tables
-		drop table feeds;
-		drop table items;
-		drop table http_states;
-		drop table feed_errors;
-
-		-- 04. rename new tables
-		alter table new_feeds rename to feeds;
-		alter table new_items rename to items;
-		alter table new_http_states rename to http_states;
-		alter table new_feed_errors rename to feed_errors;
-
-		-- 05. reconstruct indexes & triggers
-		create index if not exists idx_feed_folder_id on feeds(folder_id);
-		create unique index if not exists idx_feed_feed_link on feeds(feed_link);
-		create index if not exists idx_item_feed_id on items(feed_id);
-		create index if not exists idx_item_status  on items(status);
-		create index if not exists idx_item_search_rowid on items(search_rowid);
-		create unique index if not exists idx_item_guid on items(feed_id, guid);
-		create trigger if not exists del_item_search after delete on items begin
-		  delete from search where rowid = old.search_rowid;
-		end;
-
-		-- 06. check consistency
-		pragma foreign_key_check;
-	`
-	_, err := tx.Exec(sql)
-	return err
-}
-
-func m04_item_podcasturl(tx *sql.Tx) error {
-	sql := `
-		alter table items add column podcast_url text
-	`
-	_, err := tx.Exec(sql)
-	return err
-}
-
-func m05_move_description_to_content(tx *sql.Tx) error {
-	sql := `
-		update items set content=description
-		where length(content) = 0 or content is null
-	`
-	_, err := tx.Exec(sql)
-	return err
-}
-
-func m06_fill_missing_dates(tx *sql.Tx) error {
-	sql := `
-		update items set date = 0 where date is null;
-	`
-	_, err := tx.Exec(sql)
-	return err
-}
-
-func m07_add_feed_size(tx *sql.Tx) error {
-	sql := `
-		create table if not exists feed_sizes (
-		 feed_id        references feeds(id) on delete cascade unique,
-		 size           integer not null default 0
-		);
-	`
-	_, err := tx.Exec(sql)
-	return err
-}
-
-func m08_normalize_datetime(tx *sql.Tx) error {
-	rows, err := tx.Query(`select id, date_arrived from items;`)
-	if err != nil {
-		return err
-	}
-	for rows.Next() {
-		var id int64
-		var dateArrived time.Time
-		err = rows.Scan(&id, &dateArrived)
-		if err != nil {
-			return err
-		}
-		_, err = tx.Exec(`update items set date_arrived = ? where id = ?;`, dateArrived.UTC(), id)
-		if err != nil {
-			return err
-		}
-	}
-	_, err = tx.Exec(`update items set date = strftime('%Y-%m-%d %H:%M:%f', date);`)
-	return err
-}
-
-func m09_change_item_index(tx *sql.Tx) error {
-	sql := `
-        drop index if exists idx_item_status;
-		create index if not exists idx_item__date_id_status on items(date,id,status);
-	`
-	_, err := tx.Exec(sql)
-	return err
-}
-
-func m10_add_item_medialinks(tx *sql.Tx) error {
-	sql := `
-		alter table items add column media_links json;
-		update items set media_links = case
-			when coalesce(image, '') != '' and coalesce(podcast_url, '') != ''
-			then json_array(json_object('type', 'image', 'url', image), json_object('type', 'audio', 'url', podcast_url))
-
-			when coalesce(image, '') != ''
-			then json_array(json_object('type', 'image', 'url', image))
-
-			when coalesce(podcast_url, '') != ''
-			then json_array(json_object('type', 'audio', 'url', podcast_url))
-
-			else null
-		end;
-		alter table items drop column image;
-		alter table items drop column podcast_url;
-	`
-	_, err := tx.Exec(sql)
+	fmt.Println(m01_initial_sql)
+	_, err := tx.Exec(m01_initial_sql)
 	return err
 }

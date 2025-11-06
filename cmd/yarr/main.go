@@ -7,10 +7,8 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 
-	"github.com/nkanaev/yarr/src/platform"
 	"github.com/nkanaev/yarr/src/server"
 	"github.com/nkanaev/yarr/src/storage"
 	"github.com/nkanaev/yarr/src/worker"
@@ -40,13 +38,11 @@ func parseAuthfile(authfile io.Reader) (username, password string, err error) {
 		}
 		username = parts[0]
 		password = parts[1]
-		break
 	}
 	return username, password, nil
 }
 
 func main() {
-	platform.FixConsoleIfNeeded()
 
 	var addr, db, authfile, auth, certfile, keyfile, basepath, logfile string
 	var ver, open bool
@@ -67,7 +63,7 @@ func main() {
 	flag.StringVar(&auth, "auth", opt("YARR_AUTH", ""), "string with username and password in the format `username:password`")
 	flag.StringVar(&certfile, "cert-file", opt("YARR_CERTFILE", ""), "`path` to cert file for https")
 	flag.StringVar(&keyfile, "key-file", opt("YARR_KEYFILE", ""), "`path` to key file for https")
-	flag.StringVar(&db, "db", opt("YARR_DB", ""), "storage file `path`")
+	flag.StringVar(&db, "db", opt("YARR_DB", ""), "mysql connection string")
 	flag.StringVar(&logfile, "log-file", opt("YARR_LOGFILE", ""), "`path` to log file to use instead of stdout")
 	flag.BoolVar(&ver, "version", false, "print application version")
 	flag.BoolVar(&open, "open", false, "open the server in browser")
@@ -95,19 +91,10 @@ func main() {
 	}
 
 	if db == "" {
-		configPath, err := os.UserConfigDir()
-		if err != nil {
-			log.Fatal("Failed to get config dir: ", err)
-		}
-
-		storagePath := filepath.Join(configPath, "yarr")
-		if err := os.MkdirAll(storagePath, 0755); err != nil {
-			log.Fatal("Failed to create app config dir: ", err)
-		}
-		db = filepath.Join(storagePath, "storage.db")
+		log.Fatal("Failed to get db config")
 	}
 
-	log.Printf("using db file %s", db)
+	// log.Printf("using db file %s", db)
 
 	var username, password string
 	var err error
@@ -155,8 +142,5 @@ func main() {
 	}
 
 	log.Printf("starting server at %s", srv.GetAddr())
-	if open {
-		platform.Open(srv.GetAddr())
-	}
-	platform.Start(srv)
+	srv.Start()
 }

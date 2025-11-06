@@ -137,14 +137,14 @@ func (s *Storage) CreateItems(items []Item) bool {
 				date_arrived, status
 			)
 			values (
-				?, ?, ?, ?, strftime('%Y-%m-%d %H:%M:%f', ?),
+				?, ?, ?, ?, ?,
 				?, ?,
 				?, ?
 			)
-			on conflict (feed_id, guid) do nothing`,
+			on duplicate key update guid = ?`,
 			item.GUID, item.FeedId, item.Title, item.Link, item.Date,
 			item.Content, item.MediaLinks,
-			now, UNREAD,
+			now, UNREAD, item.GUID,
 		)
 		if err != nil {
 			log.Print(err)
@@ -184,7 +184,7 @@ func listQueryPredicate(filter ItemFilter, newestFirst bool) (string, []interfac
 			terms[idx] = word + "*"
 		}
 
-		cond = append(cond, "i.search_rowid in (select rowid from search where search match ?)")
+		// cond = append(cond, "i.search_rowid in (select rowid from search where search match ?)")
 		args = append(args, strings.Join(terms, " "))
 	}
 	if filter.After != nil {
@@ -245,7 +245,7 @@ func (s *Storage) CountItems(filter ItemFilter) int {
 
 func (s *Storage) ListItems(filter ItemFilter, limit int, newestFirst bool, withContent bool) []Item {
 	predicate, args := listQueryPredicate(filter, newestFirst)
-	result := make([]Item, 0, 0)
+	result := make([]Item, 0)
 
 	order := "date desc, id desc"
 	if !newestFirst {

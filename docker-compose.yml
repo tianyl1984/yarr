@@ -1,3 +1,5 @@
+x-env-file: &env_file
+  - .env
 
 name: yarr
 
@@ -11,9 +13,4 @@ services:
     ports:
       - "7070:7070"
     restart: unless-stopped
-    volumes:
-      - yarr-data:/data
-
-volumes:
-  yarr-data:
-    external: true
+    env_file: *env_file

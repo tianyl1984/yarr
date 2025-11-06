@@ -20,17 +20,16 @@ func (s *Storage) CreateFeed(title, description, link, feedLink string, folderId
 	if title == "" {
 		title = feedLink
 	}
-	row := s.db.QueryRow(`
-		insert into feeds (title, description, link, feed_link, folder_id) 
-		values (?, ?, ?, ?, ?)
-		on conflict (feed_link) do update set folder_id = ?
-        returning id`,
-		title, description, link, feedLink, folderId,
-		folderId,
+	result, err := s.db.Exec(`
+		insert into feeds (title, description, link, feed_link, folder_id) values (?, ?, ?, ?, ?) on duplicate key update folder_id=?
+		`,
+		title, description, link, feedLink, folderId, folderId,
 	)
-
-	var id int64
-	err := row.Scan(&id)
+	if err != nil {
+		log.Print(err)
+		return nil
+	}
+	id, err := result.LastInsertId()
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -87,7 +86,7 @@ func (s *Storage) ListFeeds() []Feed {
 		select id, folder_id, title, description, link, feed_link,
 		       ifnull(length(icon), 0) > 0 as has_icon
 		from feeds
-		order by title collate nocase
+		order by title
 	`)
 	if err != nil {
 		log.Print(err)
@@ -173,8 +172,8 @@ func (s *Storage) SetFeedError(feedID int64, lastError error) {
 	_, err := s.db.Exec(`
 		insert into feed_errors (feed_id, error)
 		values (?, ?)
-		on conflict (feed_id) do update set error = excluded.error`,
-		feedID, lastError.Error(),
+		on duplicate key update error = ?`,
+		feedID, lastError.Error(), lastError.Error(),
 	)
 	if err != nil {
 		log.Print(err)
@@ -205,8 +204,8 @@ func (s *Storage) SetFeedSize(feedId int64, size int) {
 	_, err := s.db.Exec(`
 		insert into feed_sizes (feed_id, size)
 		values (?, ?)
-		on conflict (feed_id) do update set size = excluded.size`,
-		feedId, size,
+		on duplicate key update size = ?`,
+		feedId, size, size,
 	)
 	if err != nil {
 		log.Print(err)
