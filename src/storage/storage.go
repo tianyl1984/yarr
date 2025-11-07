@@ -2,6 +2,7 @@ package storage
 
 import (
 	"database/sql"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -15,7 +16,10 @@ func New(dsn string) (*Storage, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	db.SetConnMaxIdleTime(time.Minute * 20)
+	db.SetConnMaxLifetime(time.Hour)
+	db.SetMaxIdleConns(2)
+	db.SetMaxOpenConns(5)
 	if err = migrate(db); err != nil {
 		return nil, err
 	}
