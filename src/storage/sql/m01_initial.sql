@@ -47,7 +47,7 @@ CREATE TABLE `http_states` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `feed_id` bigint NOT NULL,
   `last_refreshed` datetime DEFAULT NULL,
-  `last_modified` datetime DEFAULT NULL,
+  `last_modified` varchar(50) DEFAULT NULL,
   `etag` varchar(500) DEFAULT NULL,
   PRIMARY KEY (`id`) USING BTREE,
   KEY `idx_feed_id` (`feed_id`)

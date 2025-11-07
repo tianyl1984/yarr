@@ -60,8 +60,8 @@ func (s *Storage) GetHTTPState(feedID int64) *HTTPState {
 func (s *Storage) SetHTTPState(feedID int64, lastModified, etag string) {
 	_, err := s.db.Exec(`
 		insert into http_states (feed_id, last_modified, etag, last_refreshed)
-		values (?, ?, ?, datetime())
-		on duplicate key update last_modified = ?, etag = ?, last_refreshed = datetime()`,
+		values (?, ?, ?, now())
+		on duplicate key update last_modified = ?, etag = ?, last_refreshed = now()`,
 		// insert
 		feedID, lastModified, etag,
 		// upsert
