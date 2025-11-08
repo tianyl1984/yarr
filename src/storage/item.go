@@ -8,8 +8,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/nkanaev/yarr/src/content/htmlutil"
 )
 
 type ItemStatus int
@@ -359,109 +357,4 @@ func (s *Storage) FeedStats() []FeedStat {
 		result = append(result, stat)
 	}
 	return result
-}
-
-func (s *Storage) SyncSearch() {
-	rows, err := s.db.Query(`
-		select id, title, content
-		from items
-		where search_rowid is null;
-	`)
-	if err != nil {
-		log.Print(err)
-		return
-	}
-
-	items := make([]Item, 0)
-	for rows.Next() {
-		var item Item
-		rows.Scan(&item.Id, &item.Title, &item.Content)
-		items = append(items, item)
-	}
-
-	for _, item := range items {
-		result, err := s.db.Exec(`
-			insert into search (title, description, content) values (?, "", ?)`,
-			item.Title, htmlutil.ExtractText(item.Content),
-		)
-		if err != nil {
-			log.Print(err)
-			return
-		}
-		if numrows, err := result.RowsAffected(); err == nil && numrows == 1 {
-			if rowId, err := result.LastInsertId(); err == nil {
-				s.db.Exec(
-					`update items set search_rowid = ? where id = ?`,
-					rowId, item.Id,
-				)
-			}
-		}
-	}
-}
-
-var (
-	itemsKeepSize = 50
-	itemsKeepDays = 90
-)
-
-// Delete old articles from the database to cleanup space.
-//
-// The rules:
-//   - Never delete starred entries.
-//   - Keep at least the same amount of articles the feed provides (default: 50).
-//     This prevents from deleting items for rarely updated and/or ever-growing
-//     feeds which might eventually reappear as unread.
-//   - Keep entries for a certain period (default: 90 days).
-func (s *Storage) DeleteOldItems() {
-	rows, err := s.db.Query(`
-		select
-			i.feed_id,
-			max(coalesce(s.size, 0), ?) as max_items,
-			count(*) as num_items
-		from items i
-		left outer join feed_sizes s on s.feed_id = i.feed_id
-		where status != ?
-		group by i.feed_id
-	`, itemsKeepSize, STARRED)
-	if err != nil {
-		log.Print(err)
-		return
-	}
-
-	feedLimits := make(map[int64]int64, 0)
-	for rows.Next() {
-		var feedId, limit int64
-		rows.Scan(&feedId, &limit, nil)
-		feedLimits[feedId] = limit
-	}
-
-	for feedId, limit := range feedLimits {
-		result, err := s.db.Exec(`
-			delete from items
-			where id in (
-				select i.id
-				from items i
-				where i.feed_id = ? and status != ?
-				order by date desc
-				limit -1 offset ?
-			) and date_arrived < ?
-			`,
-			feedId,
-			STARRED,
-			limit,
-			time.Now().UTC().Add(-time.Hour*time.Duration(24*itemsKeepDays)),
-		)
-		if err != nil {
-			log.Print(err)
-			return
-		}
-		numDeleted, err := result.RowsAffected()
-		if err != nil {
-			log.Print(err)
-			return
-		}
-		if numDeleted > 0 {
-			log.Printf("Deleted %d old items (feed: %d)", numDeleted, feedId)
-		}
-	}
 }

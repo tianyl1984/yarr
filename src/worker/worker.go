@@ -28,17 +28,6 @@ func (w *Worker) FeedsPending() int32 {
 	return *w.pending
 }
 
-func (w *Worker) StartFeedCleaner() {
-	go w.db.DeleteOldItems()
-	ticker := time.NewTicker(time.Hour * 24)
-	go func() {
-		for {
-			<-ticker.C
-			w.db.DeleteOldItems()
-		}
-	}()
-}
-
 func (w *Worker) FindFavicons() {
 	go func() {
 		for _, feed := range w.db.ListFeedsMissingIcons() {
@@ -127,7 +116,6 @@ func (w *Worker) refresher(feeds []storage.Feed) {
 			w.db.SetFeedSize(items[0].FeedId, len(items))
 		}
 		atomic.AddInt32(w.pending, -1)
-		// w.db.SyncSearch()
 	}
 	close(srcqueue)
 	close(dstqueue)

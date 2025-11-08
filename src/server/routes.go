@@ -106,10 +106,11 @@ func (s *Server) handleStatus(c *router.Context) {
 }
 
 func (s *Server) handleFolderList(c *router.Context) {
-	if c.Req.Method == "GET" {
+	switch c.Req.Method {
+	case "GET":
 		list := s.db.ListFolders()
 		c.JSON(http.StatusOK, list)
-	} else if c.Req.Method == "POST" {
+	case "POST":
 		var body FolderCreateForm
 		if err := json.NewDecoder(c.Req.Body).Decode(&body); err != nil {
 			log.Print(err)
@@ -122,7 +123,7 @@ func (s *Server) handleFolderList(c *router.Context) {
 		}
 		folder := s.db.CreateFolder(body.Title)
 		c.JSON(http.StatusCreated, folder)
-	} else {
+	default:
 		c.Out.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
@@ -133,7 +134,8 @@ func (s *Server) handleFolder(c *router.Context) {
 		c.Out.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if c.Req.Method == "PUT" {
+	switch c.Req.Method {
+	case "PUT":
 		var body FolderUpdateForm
 		if err := json.NewDecoder(c.Req.Body).Decode(&body); err != nil {
 			log.Print(err)
@@ -147,7 +149,7 @@ func (s *Server) handleFolder(c *router.Context) {
 			s.db.ToggleFolderExpanded(id, *body.IsExpanded)
 		}
 		c.Out.WriteHeader(http.StatusOK)
-	} else if c.Req.Method == "DELETE" {
+	case "DELETE":
 		s.db.DeleteFolder(id)
 		c.Out.WriteHeader(http.StatusNoContent)
 	}
@@ -219,10 +221,11 @@ func (s *Server) handleFeedIcon(c *router.Context) {
 }
 
 func (s *Server) handleFeedList(c *router.Context) {
-	if c.Req.Method == "GET" {
+	switch c.Req.Method {
+	case "GET":
 		list := s.db.ListFeeds()
 		c.JSON(http.StatusOK, list)
-	} else if c.Req.Method == "POST" {
+	case "POST":
 		var form FeedCreateForm
 		if err := json.NewDecoder(c.Req.Body).Decode(&form); err != nil {
 			log.Print(err)
@@ -249,7 +252,6 @@ func (s *Server) handleFeedList(c *router.Context) {
 			if len(items) > 0 {
 				s.db.CreateItems(items)
 				s.db.SetFeedSize(feed.Id, len(items))
-				// s.db.SyncSearch()
 			}
 			s.worker.FindFeedFavicon(*feed)
 
@@ -269,7 +271,8 @@ func (s *Server) handleFeed(c *router.Context) {
 		c.Out.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if c.Req.Method == "PUT" {
+	switch c.Req.Method {
+	case "PUT":
 		feed := s.db.GetFeed(id)
 		if feed == nil {
 			c.Out.WriteHeader(http.StatusBadRequest)
@@ -300,10 +303,10 @@ func (s *Server) handleFeed(c *router.Context) {
 			}
 		}
 		c.Out.WriteHeader(http.StatusOK)
-	} else if c.Req.Method == "DELETE" {
+	case "DELETE":
 		s.db.DeleteFeed(id)
 		c.Out.WriteHeader(http.StatusNoContent)
-	} else {
+	default:
 		c.Out.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
@@ -314,7 +317,8 @@ func (s *Server) handleItem(c *router.Context) {
 		c.Out.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if c.Req.Method == "GET" {
+	switch c.Req.Method {
+	case "GET":
 		item := s.db.GetItem(id)
 		if item == nil {
 			c.Out.WriteHeader(http.StatusBadRequest)
@@ -334,7 +338,7 @@ func (s *Server) handleItem(c *router.Context) {
 		}
 
 		c.JSON(http.StatusOK, item)
-	} else if c.Req.Method == "PUT" {
+	case "PUT":
 		var body ItemUpdateForm
 		if err := json.NewDecoder(c.Req.Body).Decode(&body); err != nil {
 			log.Print(err)
@@ -345,13 +349,14 @@ func (s *Server) handleItem(c *router.Context) {
 			s.db.UpdateItemStatus(id, *body.Status)
 		}
 		c.Out.WriteHeader(http.StatusOK)
-	} else {
+	default:
 		c.Out.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
 func (s *Server) handleItemList(c *router.Context) {
-	if c.Req.Method == "GET" {
+	switch c.Req.Method {
+	case "GET":
 		perPage := 20
 		query := c.Req.URL.Query()
 
@@ -391,7 +396,7 @@ func (s *Server) handleItemList(c *router.Context) {
 			"list":     items,
 			"has_more": hasMore,
 		})
-	} else if c.Req.Method == "PUT" {
+	case "PUT":
 		filter := storage.MarkFilter{}
 
 		if folderID, err := c.QueryInt64("folder_id"); err == nil {
@@ -402,15 +407,16 @@ func (s *Server) handleItemList(c *router.Context) {
 		}
 		s.db.MarkItemsRead(filter)
 		c.Out.WriteHeader(http.StatusOK)
-	} else {
+	default:
 		c.Out.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
 func (s *Server) handleSettings(c *router.Context) {
-	if c.Req.Method == "GET" {
+	switch c.Req.Method {
+	case "GET":
 		c.JSON(http.StatusOK, s.db.GetSettings())
-	} else if c.Req.Method == "PUT" {
+	case "PUT":
 		settings := make(map[string]interface{})
 		if err := json.NewDecoder(c.Req.Body).Decode(&settings); err != nil {
 			c.Out.WriteHeader(http.StatusBadRequest)
