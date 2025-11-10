@@ -1,10 +1,10 @@
-FROM golang:alpine3.21 AS build
+FROM golang:alpine3.22 AS build
 # RUN apk add build-base git
 WORKDIR /src
 COPY . .
 RUN go build -ldflags="-s -w -X 'main.Version=2.5'" -o out/yarr ./cmd/yarr
 
-FROM alpine:latest
+FROM alpine:3.22
 RUN apk add --no-cache ca-certificates && update-ca-certificates
 COPY --from=build /src/out/yarr /usr/local/bin/yarr
 EXPOSE 7070
