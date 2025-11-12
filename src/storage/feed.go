@@ -14,16 +14,18 @@ type Feed struct {
 	FeedLink    string  `json:"feed_link"`
 	Icon        *[]byte `json:"icon,omitempty"`
 	HasIcon     bool    `json:"has_icon"`
+	UseProxy    bool    `json:"use_proxy"`
 }
 
-func (s *Storage) CreateFeed(title, description, link, feedLink string, folderId *int64) *Feed {
+func (s *Storage) CreateFeed(title, description, link, feedLink string, folderId *int64, useProxy bool) *Feed {
 	if title == "" {
 		title = feedLink
 	}
 	result, err := s.db.Exec(`
-		insert into feeds (title, description, link, feed_link, folder_id) values (?, ?, ?, ?, ?) on duplicate key update folder_id=?
+		insert into feeds (title, description, link, feed_link, folder_id, use_proxy) values (?, ?, ?, ?, ?, ?) 
+		on duplicate key update id = LAST_INSERT_ID(id), use_proxy = ?
 		`,
-		title, description, link, feedLink, folderId, folderId,
+		title, description, link, feedLink, folderId, useProxy, useProxy,
 	)
 	if err != nil {
 		log.Print(err)
@@ -84,7 +86,7 @@ func (s *Storage) ListFeeds() []Feed {
 	result := make([]Feed, 0)
 	rows, err := s.db.Query(`
 		select id, folder_id, title, description, link, feed_link,
-		       ifnull(length(icon), 0) > 0 as has_icon
+		       ifnull(length(icon), 0) > 0 as has_icon, use_proxy
 		from feeds
 		order by title
 	`)
@@ -102,6 +104,7 @@ func (s *Storage) ListFeeds() []Feed {
 			&f.Link,
 			&f.FeedLink,
 			&f.HasIcon,
+			&f.UseProxy,
 		)
 		if err != nil {
 			log.Print(err)
@@ -115,7 +118,7 @@ func (s *Storage) ListFeeds() []Feed {
 func (s *Storage) ListFeedsMissingIcons() []Feed {
 	result := make([]Feed, 0)
 	rows, err := s.db.Query(`
-		select id, folder_id, title, description, link, feed_link
+		select id, folder_id, title, description, link, feed_link, use_proxy
 		from feeds
 		where icon is null
 	`)
@@ -132,6 +135,7 @@ func (s *Storage) ListFeedsMissingIcons() []Feed {
 			&f.Description,
 			&f.Link,
 			&f.FeedLink,
+			&f.UseProxy,
 		)
 		if err != nil {
 			log.Print(err)
@@ -147,11 +151,12 @@ func (s *Storage) GetFeed(id int64) *Feed {
 	err := s.db.QueryRow(`
 		select
 			id, folder_id, title, link, feed_link,
-			icon, ifnull(icon, '') != '' as has_icon
+			icon, ifnull(icon, '') != '' as has_icon,
+			use_proxy
 		from feeds where id = ?
 	`, id).Scan(
 		&f.Id, &f.FolderId, &f.Title, &f.Link, &f.FeedLink,
-		&f.Icon, &f.HasIcon,
+		&f.Icon, &f.HasIcon, &f.UseProxy,
 	)
 	if err != nil {
 		if err != sql.ErrNoRows {

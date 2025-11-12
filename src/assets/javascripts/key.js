@@ -76,6 +76,7 @@ var shortcutFunctions = {
 
 // If you edit, make sure you update the help modal
 var keybindings = {
+  "v": shortcutFunctions.openItemLink,
   "o": shortcutFunctions.openItemLink,
   "i": shortcutFunctions.toggleReadability,
   "r": shortcutFunctions.toggleItemRead,
@@ -95,6 +96,7 @@ var keybindings = {
 }
 
 var codebindings = {
+  "KeyV": shortcutFunctions.openItemLink,
   "KeyO": shortcutFunctions.openItemLink,
   "KeyI": shortcutFunctions.toggleReadability,
   //"r": shortcutFunctions.toggleItemRead,

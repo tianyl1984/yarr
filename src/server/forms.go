@@ -18,4 +18,5 @@ type FolderUpdateForm struct {
 type FeedCreateForm struct {
 	Url      string `json:"url"`
 	FolderID *int64 `json:"folder_id,omitempty"`
+	UseProxy bool   `json:"use_proxy"`
 }

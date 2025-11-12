@@ -233,7 +233,7 @@ func (s *Server) handleFeedList(c *router.Context) {
 			return
 		}
 
-		result, err := worker.DiscoverFeed(form.Url)
+		result, err := worker.DiscoverFeed(form.Url, form.UseProxy)
 		switch {
 		case err != nil:
 			log.Printf("Faild to discover feed for %s: %s", form.Url, err)
@@ -247,6 +247,7 @@ func (s *Server) handleFeedList(c *router.Context) {
 				result.Feed.SiteURL,
 				result.FeedLink,
 				form.FolderID,
+				form.UseProxy,
 			)
 			items := worker.ConvertItems(result.Feed.Items, *feed)
 			if len(items) > 0 {
@@ -447,12 +448,12 @@ func (s *Server) handleOPMLImport(c *router.Context) {
 			return
 		}
 		for _, f := range doc.Feeds {
-			s.db.CreateFeed(f.Title, "", f.SiteUrl, f.FeedUrl, nil)
+			s.db.CreateFeed(f.Title, "", f.SiteUrl, f.FeedUrl, nil, false)
 		}
 		for _, f := range doc.Folders {
 			folder := s.db.CreateFolder(f.Title)
 			for _, ff := range f.AllFeeds() {
-				s.db.CreateFeed(ff.Title, "", ff.SiteUrl, ff.FeedUrl, &folder.Id)
+				s.db.CreateFeed(ff.Title, "", ff.SiteUrl, ff.FeedUrl, &folder.Id, false)
 			}
 		}
 
@@ -524,7 +525,8 @@ func (s *Server) handlePageCrawl(c *router.Context) {
 		return
 	}
 
-	body, err := worker.GetBody(url)
+	// TODO read from request
+	body, err := worker.GetBody(url, false)
 	if err != nil {
 		log.Print(err)
 		c.Out.WriteHeader(http.StatusBadRequest)

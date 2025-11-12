@@ -3,19 +3,22 @@ package worker
 import (
 	"net"
 	"net/http"
+	"net/url"
+	"os"
 	"time"
 )
 
 type Client struct {
-	httpClient *http.Client
-	userAgent  string
+	httpClient      *http.Client
+	proxyHttpClient *http.Client
+	userAgent       string
 }
 
-func (c *Client) get(url string) (*http.Response, error) {
-	return c.getConditional(url, "", "")
+func (c *Client) get(url string, useProxy bool) (*http.Response, error) {
+	return c.getConditional(url, "", "", useProxy)
 }
 
-func (c *Client) getConditional(url, lastModified, etag string) (*http.Response, error) {
+func (c *Client) getConditional(url, lastModified, etag string, useProxy bool) (*http.Response, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -27,18 +30,32 @@ func (c *Client) getConditional(url, lastModified, etag string) (*http.Response,
 	if etag != "" {
 		req.Header.Set("If-None-Match", etag)
 	}
+	if useProxy {
+		return c.proxyHttpClient.Do(req)
+	}
 	return c.httpClient.Do(req)
 }
 
 var client *Client
 
-func SetVersion(num string) {
-	client.userAgent = "Yarr/" + num
+func init() {
+	httpClient := newClient(nil)
+	proxyHttpClient := httpClient
+	proxy_url := os.Getenv("YARR_PROXY")
+	if proxy_url != "" {
+		proxyURL, _ := url.Parse(proxy_url)
+		proxyHttpClient = newClient(http.ProxyURL(proxyURL))
+	}
+	client = &Client{
+		httpClient:      httpClient,
+		proxyHttpClient: proxyHttpClient,
+		userAgent:       "Yarr/1.0",
+	}
 }
 
-func init() {
+func newClient(proxy func(*http.Request) (*url.URL, error)) *http.Client {
 	transport := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
+		Proxy: proxy,
 		DialContext: (&net.Dialer{
 			Timeout: 10 * time.Second,
 		}).DialContext,
@@ -49,8 +66,5 @@ func init() {
 		Timeout:   time.Second * 30,
 		Transport: transport,
 	}
-	client = &Client{
-		httpClient: httpClient,
-		userAgent:  "Yarr/1.0",
-	}
+	return httpClient
 }

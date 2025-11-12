@@ -614,6 +614,7 @@ var vm = new Vue({
       var data = {
         url: form.querySelector('input[name=url]').value,
         folder_id: parseInt(form.querySelector('select[name=folder_id]').value) || null,
+        use_proxy: form.querySelector('select[name=use_proxy]').value === 'true',
       }
       if (this.feedNewChoiceSelected) {
         data.url = this.feedNewChoiceSelected

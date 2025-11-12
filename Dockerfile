@@ -5,7 +5,7 @@ COPY . .
 RUN go build -ldflags="-s -w -X 'main.Version=2.5'" -o out/yarr ./cmd/yarr
 
 FROM alpine:3.22
-RUN apk add --no-cache ca-certificates && update-ca-certificates
+RUN apk add --no-cache ca-certificates tzdata && update-ca-certificates
 COPY --from=build /src/out/yarr /usr/local/bin/yarr
 EXPOSE 7070
 ENTRYPOINT ["/usr/local/bin/yarr"]

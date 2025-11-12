@@ -22,6 +22,7 @@ CREATE TABLE if not exists `feeds` (
   `link` varchar(300) DEFAULT NULL,
   `feed_link` varchar(300) NOT NULL UNIQUE,
   `icon` blob,
+  `use_proxy` bool DEFAULT false,
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

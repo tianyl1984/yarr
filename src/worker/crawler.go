@@ -28,10 +28,10 @@ type DiscoverResult struct {
 	Sources  []FeedSource
 }
 
-func DiscoverFeed(candidateUrl string) (*DiscoverResult, error) {
+func DiscoverFeed(candidateUrl string, useProxy bool) (*DiscoverResult, error) {
 	result := &DiscoverResult{}
 	// Query URL
-	res, err := client.get(candidateUrl)
+	res, err := client.get(candidateUrl, useProxy)
 	if err != nil {
 		return nil, err
 	}
@@ -69,12 +69,12 @@ func DiscoverFeed(candidateUrl string) (*DiscoverResult, error) {
 	}
 	switch {
 	case len(sources) == 0:
-		return nil, errors.New("No feeds found at the given url")
+		return nil, errors.New("no feeds found at the given url")
 	case len(sources) == 1:
 		if sources[0].Url == candidateUrl {
-			return nil, errors.New("Recursion!")
+			return nil, errors.New("recursion")
 		}
-		return DiscoverFeed(sources[0].Url)
+		return DiscoverFeed(sources[0].Url, useProxy)
 	}
 
 	result.Sources = sources
@@ -89,7 +89,7 @@ var imageTypes = map[string]bool{
 	"image/gif":    true,
 }
 
-func findFavicon(siteUrl, feedUrl string) (*[]byte, error) {
+func findFavicon(siteUrl, feedUrl string, useProxy bool) (*[]byte, error) {
 	urls := make([]string, 0)
 
 	favicon := func(link string) string {
@@ -101,7 +101,7 @@ func findFavicon(siteUrl, feedUrl string) (*[]byte, error) {
 	}
 
 	if siteUrl != "" {
-		if res, err := client.get(siteUrl); err == nil {
+		if res, err := client.get(siteUrl, useProxy); err == nil {
 			defer res.Body.Close()
 			if body, err := ioutil.ReadAll(res.Body); err == nil {
 				urls = append(urls, scraper.FindIcons(string(body), siteUrl)...)
@@ -117,7 +117,7 @@ func findFavicon(siteUrl, feedUrl string) (*[]byte, error) {
 	}
 
 	for _, u := range urls {
-		res, err := client.get(u)
+		res, err := client.get(u, useProxy)
 		if err != nil {
 			continue
 		}
@@ -169,7 +169,7 @@ func listItems(f storage.Feed, db *storage.Storage) ([]storage.Item, error) {
 		etag = state.Etag
 	}
 
-	res, err := client.getConditional(f.FeedLink, lmod, etag)
+	res, err := client.getConditional(f.FeedLink, lmod, etag, f.UseProxy)
 	if err != nil {
 		return nil, err
 	}
@@ -210,8 +210,8 @@ func getCharset(res *http.Response) string {
 	return ""
 }
 
-func GetBody(url string) (string, error) {
-	res, err := client.get(url)
+func GetBody(url string, useProxy bool) (string, error) {
+	res, err := client.get(url, useProxy)
 	if err != nil {
 		return "", err
 	}
