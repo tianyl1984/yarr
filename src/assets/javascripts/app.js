@@ -281,7 +281,12 @@ var vm = new Vue({
         return folders
       }, {})
       var folders = this.folders.slice().map(function(folder) {
-        folder.feeds = feedsByFolders[folder.id]
+        folder.feeds = feedsByFolders[folder.id] || []
+        folder.feeds.sort((a, b) => {
+          var a1 = vm.feedStats[a.id] || {unread:0}
+          var b1 = vm.feedStats[b.id] || {unread:0}
+          return b1.unread - a1.unread
+        })
         return folder
       })
       folders.push({id: null, feeds: feedsByFolders[null]})
@@ -818,16 +823,18 @@ var vm = new Vue({
       this.refreshRate = this.refreshRateOptions[curIdx + offset].value
     },
     mustHideFolder: function (folder) {
-      return this.filterSelected
-        && !(this.current.folder.id == folder.id || this.current.feed.folder_id == folder.id)
-        && !this.filteredFolderStats[folder.id]
-        && (!this.itemSelectedDetails || (this.feedsById[this.itemSelectedDetails.feed_id] || {}).folder_id != folder.id)
+      return false;
+      // return this.filterSelected
+      //   && !(this.current.folder.id == folder.id || this.current.feed.folder_id == folder.id)
+      //   && !this.filteredFolderStats[folder.id]
+      //   && (!this.itemSelectedDetails || (this.feedsById[this.itemSelectedDetails.feed_id] || {}).folder_id != folder.id)
     },
     mustHideFeed: function (feed) {
-      return this.filterSelected
-        && !(this.current.feed.id == feed.id)
-        && !this.filteredFeedStats[feed.id]
-        && (!this.itemSelectedDetails || this.itemSelectedDetails.feed_id != feed.id)
+      return false;
+      // return this.filterSelected
+      //   && !(this.current.feed.id == feed.id)
+      //   && !this.filteredFeedStats[feed.id]
+      //   && (!this.itemSelectedDetails || this.itemSelectedDetails.feed_id != feed.id)
     },
   }
 })
