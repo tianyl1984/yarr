@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"net/http"
 	"net/url"
@@ -103,7 +102,7 @@ func findFavicon(siteUrl, feedUrl string, useProxy bool) (*[]byte, error) {
 	if siteUrl != "" {
 		if res, err := client.get(siteUrl, useProxy); err == nil {
 			defer res.Body.Close()
-			if body, err := ioutil.ReadAll(res.Body); err == nil {
+			if body, err := io.ReadAll(res.Body); err == nil {
 				urls = append(urls, scraper.FindIcons(string(body), siteUrl)...)
 				if c := favicon(siteUrl); c != "" {
 					urls = append(urls, c)
@@ -126,7 +125,7 @@ func findFavicon(siteUrl, feedUrl string, useProxy bool) (*[]byte, error) {
 			continue
 		}
 
-		content, err := ioutil.ReadAll(res.Body)
+		content, err := io.ReadAll(res.Body)
 		if err != nil {
 			continue
 		}
@@ -142,10 +141,12 @@ func findFavicon(siteUrl, feedUrl string, useProxy bool) (*[]byte, error) {
 func ConvertItems(items []parser.Item, feed storage.Feed) []storage.Item {
 	result := make([]storage.Item, len(items))
 	for i, item := range items {
-		item := item
 		mediaLinks := make(storage.MediaLinks, 0)
 		for _, link := range item.MediaLinks {
 			mediaLinks = append(mediaLinks, storage.MediaLink(link))
+		}
+		if len(mediaLinks) >= 3 {
+			mediaLinks = mediaLinks[:3]
 		}
 		result[i] = storage.Item{
 			GUID:       item.GUID,
