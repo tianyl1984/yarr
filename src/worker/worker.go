@@ -6,22 +6,24 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/nkanaev/yarr/src/htmlfeed"
 	"github.com/nkanaev/yarr/src/storage"
 )
 
 const NUM_WORKERS = 4
 
 type Worker struct {
-	db      *storage.Storage
-	pending *int32
-	refresh *time.Ticker
-	reflock sync.Mutex
-	stopper chan bool
+	db       *storage.Storage
+	htmlfeed *htmlfeed.HtmlFeed
+	pending  *int32
+	refresh  *time.Ticker
+	reflock  sync.Mutex
+	stopper  chan bool
 }
 
 func NewWorker(db *storage.Storage) *Worker {
 	pending := int32(0)
-	return &Worker{db: db, pending: &pending}
+	return &Worker{db: db, htmlfeed: htmlfeed.NewHtmlFeed(), pending: &pending}
 }
 
 func (w *Worker) FeedsPending() int32 {
@@ -125,7 +127,7 @@ func (w *Worker) refresher(feeds []storage.Feed) {
 
 func (w *Worker) worker(srcqueue <-chan storage.Feed, dstqueue chan<- []storage.Item) {
 	for feed := range srcqueue {
-		items, err := listItems(feed, w.db)
+		items, err := listItems(feed, w.db, w.htmlfeed)
 		if err != nil {
 			w.db.SetFeedError(feed.Id, err)
 		}

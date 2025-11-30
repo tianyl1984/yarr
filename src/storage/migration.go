@@ -9,6 +9,7 @@ import (
 
 var migrations = []func(*sql.Tx) error{
 	m01_initial,
+	m02_feedconfig,
 }
 
 var maxVersion = int64(len(migrations))
@@ -84,8 +85,17 @@ func migrateVersion(v int64, db *sql.DB) error {
 //go:embed sql/m01_initial.sql
 var m01_initial_sql string
 
+//go:embed sql/m02_feedconfig.sql
+var m02_feedconfig_sql string
+
 func m01_initial(tx *sql.Tx) error {
 	fmt.Println(m01_initial_sql)
 	_, err := tx.Exec(m01_initial_sql)
+	return err
+}
+
+func m02_feedconfig(tx *sql.Tx) error {
+	fmt.Println(m02_feedconfig_sql)
+	_, err := tx.Exec(m02_feedconfig_sql)
 	return err
 }

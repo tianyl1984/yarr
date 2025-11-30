@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -39,6 +40,19 @@ func (c *Context) HTML(status int, tmpl *template.Template, data interface{}) {
 	c.Out.Header().Set("Content-Type", "text/html")
 	c.Out.WriteHeader(status)
 	tmpl.Execute(c.Out, data)
+}
+
+func (c *Context) XML(body io.Reader) {
+	data, err := io.ReadAll(body)
+	if err != nil {
+		c.Out.Header().Set("Content-Type", "text/html")
+		c.Out.WriteHeader(500)
+		c.Out.Write([]byte(err.Error()))
+		return
+	}
+	c.Out.Header().Set("Content-Type", "application/xml")
+	c.Out.WriteHeader(200)
+	c.Out.Write(data)
 }
 
 func (c *Context) VarInt64(key string) (int64, error) {

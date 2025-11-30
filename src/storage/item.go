@@ -139,13 +139,15 @@ func (s *Storage) CreateItems(items []Item) bool {
 				?, ?,
 				?, ?
 			)
-			on duplicate key update guid = ?`,
+			on duplicate key update id = id`,
 			truncateStr(item.GUID, 300), item.FeedId, truncateStr(item.Title, 200), item.Link, item.Date,
 			item.Content, item.MediaLinks,
-			now, UNREAD, item.GUID,
+			now, UNREAD,
 		)
 		if err != nil {
 			log.Print(err)
+			data, _ := json.MarshalIndent(item, "", "  ")
+			log.Print(string(data))
 			if err = tx.Rollback(); err != nil {
 				log.Print(err)
 				return false

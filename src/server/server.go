@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/nkanaev/yarr/src/htmlfeed"
 	"github.com/nkanaev/yarr/src/storage"
 	"github.com/nkanaev/yarr/src/worker"
 )
@@ -16,6 +17,7 @@ type Server struct {
 	Addr        string
 	db          *storage.Storage
 	worker      *worker.Worker
+	htmlfeed    *htmlfeed.HtmlFeed
 	cache       map[string]interface{}
 	cache_mutex *sync.Mutex
 
@@ -34,6 +36,7 @@ func NewServer(db *storage.Storage, addr string) *Server {
 		db:          db,
 		Addr:        addr,
 		worker:      worker.NewWorker(db),
+		htmlfeed:    htmlfeed.NewHtmlFeed(),
 		cache:       make(map[string]interface{}),
 		cache_mutex: &sync.Mutex{},
 	}

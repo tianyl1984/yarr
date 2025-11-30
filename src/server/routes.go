@@ -57,6 +57,7 @@ func (s *Server) handler() http.Handler {
 	r.For("/opml/import", s.handleOPMLImport)
 	r.For("/opml/export", s.handleOPMLExport)
 	r.For("/page", s.handlePageCrawl)
+	r.For("/htmlFeed", s.handleHtmlFeed)
 	r.For("/logout", s.handleLogout)
 	r.For("/fever/", s.handleFever)
 
@@ -233,7 +234,7 @@ func (s *Server) handleFeedList(c *router.Context) {
 			return
 		}
 
-		result, err := worker.DiscoverFeed(form.Url, form.UseProxy)
+		result, err := worker.DiscoverFeed(form.Url, form.UseProxy, s.db, s.htmlfeed)
 		switch {
 		case err != nil:
 			log.Printf("Faild to discover feed for %s: %s", form.Url, err)
@@ -543,6 +544,17 @@ func (s *Server) handlePageCrawl(c *router.Context) {
 	c.JSON(http.StatusOK, map[string]string{
 		"content": content,
 	})
+}
+
+func (s *Server) handleHtmlFeed(c *router.Context) {
+	url := c.Req.URL.Query().Get("url")
+	reader, err := s.htmlfeed.TryGetFeeds(url, s.db)
+	if err != nil {
+		log.Print(err)
+		c.Out.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	c.XML(reader)
 }
 
 func (s *Server) handleLogout(c *router.Context) {

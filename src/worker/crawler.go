@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/nkanaev/yarr/src/content/scraper"
+	"github.com/nkanaev/yarr/src/htmlfeed"
 	"github.com/nkanaev/yarr/src/parser"
 	"github.com/nkanaev/yarr/src/storage"
 	"golang.org/x/net/html/charset"
@@ -27,26 +28,34 @@ type DiscoverResult struct {
 	Sources  []FeedSource
 }
 
-func DiscoverFeed(candidateUrl string, useProxy bool) (*DiscoverResult, error) {
+func DiscoverFeed(candidateUrl string, useProxy bool, db *storage.Storage, htmlFeed *htmlfeed.HtmlFeed) (*DiscoverResult, error) {
 	result := &DiscoverResult{}
-	// Query URL
-	res, err := client.get(candidateUrl, useProxy)
+	reader, err := htmlFeed.TryGetFeeds(candidateUrl, db)
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("status code %d", res.StatusCode)
-	}
-	cs := getCharset(res)
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
+	var cs string
+	var body []byte
+	if reader == nil {
+		// Query URL
+		res, err := client.get(candidateUrl, useProxy)
+		if err != nil {
+			return nil, err
+		}
+		defer res.Body.Close()
+		if res.StatusCode != 200 {
+			return nil, fmt.Errorf("status code %d", res.StatusCode)
+		}
+		cs = getCharset(res)
+		body, err = io.ReadAll(res.Body)
+		reader = bytes.NewReader(body)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Try to feed into parser
-	feed, err := parser.ParseAndFix(bytes.NewReader(body), candidateUrl, cs)
+	feed, err := parser.ParseAndFix(reader, candidateUrl, cs)
 	if err == nil {
 		result.Feed = feed
 		result.FeedLink = candidateUrl
@@ -56,7 +65,7 @@ func DiscoverFeed(candidateUrl string, useProxy bool) (*DiscoverResult, error) {
 	// Possibly an html link. Search for feed links
 	content := string(body)
 	if cs != "" {
-		if r, err := charset.NewReaderLabel(cs, bytes.NewReader(body)); err == nil {
+		if r, err := charset.NewReaderLabel(cs, reader); err == nil {
 			if body, err := io.ReadAll(r); err == nil {
 				content = string(body)
 			}
@@ -73,7 +82,7 @@ func DiscoverFeed(candidateUrl string, useProxy bool) (*DiscoverResult, error) {
 		if sources[0].Url == candidateUrl {
 			return nil, errors.New("recursion")
 		}
-		return DiscoverFeed(sources[0].Url, useProxy)
+		return DiscoverFeed(sources[0].Url, useProxy, db, htmlFeed)
 	}
 
 	result.Sources = sources
@@ -162,7 +171,18 @@ func ConvertItems(items []parser.Item, feed storage.Feed) []storage.Item {
 	return result
 }
 
-func listItems(f storage.Feed, db *storage.Storage) ([]storage.Item, error) {
+func listItems(f storage.Feed, db *storage.Storage, htmlFeed *htmlfeed.HtmlFeed) ([]storage.Item, error) {
+	reader, err := htmlFeed.TryGetFeeds(f.FeedLink, db)
+	if err != nil {
+		return nil, err
+	}
+	if reader != nil {
+		feed, err := parser.ParseAndFix(reader, f.FeedLink, "")
+		if err != nil {
+			return nil, err
+		}
+		return ConvertItems(feed.Items, f), nil
+	}
 	lmod := ""
 	etag := ""
 	if state := db.GetHTTPState(f.Id); state != nil {
