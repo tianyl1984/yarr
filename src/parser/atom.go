@@ -44,9 +44,10 @@ type atomLink struct {
 type atomLinks []atomLink
 
 func (a *atomText) Text() string {
-	if a.Type == "html" {
+	switch a.Type {
+	case "html":
 		return htmlutil.ExtractText(a.Data)
-	} else if a.Type == "xhtml" {
+	case "xhtml":
 		return htmlutil.ExtractText(a.XML)
 	}
 	return a.Data
@@ -86,7 +87,7 @@ func ParseAtom(r io.Reader) (*Feed, error) {
 		guidFromID := ""
 		if htmlutil.IsAPossibleLink(srcitem.ID) {
 			linkFromID = srcitem.ID
-			guidFromID = srcitem.ID + "::" + srcitem.Updated
+			guidFromID = srcitem.ID
 		}
 
 		mediaLinks := srcitem.mediaLinks()
