@@ -1,11 +1,9 @@
 package worker
 
 import (
-	"net"
 	"net/http"
-	"net/url"
-	"os"
-	"time"
+
+	"github.com/nkanaev/yarr/src/httpclient"
 )
 
 type Client struct {
@@ -39,32 +37,11 @@ func (c *Client) getConditional(url, lastModified, etag string, useProxy bool) (
 var client *Client
 
 func init() {
-	httpClient := newClient(nil)
-	proxyHttpClient := httpClient
-	proxy_url := os.Getenv("YARR_PROXY")
-	if proxy_url != "" {
-		proxyURL, _ := url.Parse(proxy_url)
-		proxyHttpClient = newClient(http.ProxyURL(proxyURL))
-	}
+	httpClient := httpclient.NewClient()
+	proxyHttpClient := httpclient.NewProxyClient()
 	client = &Client{
 		httpClient:      httpClient,
 		proxyHttpClient: proxyHttpClient,
 		userAgent:       "Yarr/1.0",
 	}
-}
-
-func newClient(proxy func(*http.Request) (*url.URL, error)) *http.Client {
-	transport := &http.Transport{
-		Proxy: proxy,
-		DialContext: (&net.Dialer{
-			Timeout: 10 * time.Second,
-		}).DialContext,
-		DisableKeepAlives:   true,
-		TLSHandshakeTimeout: time.Second * 10,
-	}
-	httpClient := &http.Client{
-		Timeout:   time.Second * 30,
-		Transport: transport,
-	}
-	return httpClient
 }

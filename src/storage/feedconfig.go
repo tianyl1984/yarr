@@ -3,9 +3,11 @@ package storage
 import "database/sql"
 
 type FeedConfig struct {
-	Id     int64  `json:"id"`
-	Url    string `json:"url"`
-	Config string `json:"config"`
+	Id             int64  `json:"id"`
+	Url            string `json:"url"`
+	Config         string `json:"config"`
+	UseProxy       bool   `json:"use_proxy"`
+	UseBrowserless bool   `json:"use_browserless"`
 }
 
 type Config struct {
@@ -26,8 +28,8 @@ type ConfigItem struct {
 
 func (s *Storage) GetFeedConfig(url string) (*FeedConfig, error) {
 	var f FeedConfig
-	err := s.db.QueryRow("select id, url, config from feed_config where url = ? ", url).Scan(
-		&f.Id, &f.Url, &f.Config,
+	err := s.db.QueryRow("select * from feed_config where url = ? ", url).Scan(
+		&f.Id, &f.Url, &f.Config, &f.UseProxy, &f.UseBrowserless,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {

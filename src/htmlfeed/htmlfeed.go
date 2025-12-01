@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"regexp"
@@ -16,11 +15,13 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/nkanaev/yarr/src/httpclient"
 	"github.com/nkanaev/yarr/src/storage"
 )
 
 type HtmlFeed struct {
-	client *http.Client
+	client      *http.Client
+	proxyClient *http.Client
 }
 
 type rss struct {
@@ -41,7 +42,8 @@ type item struct {
 
 func NewHtmlFeed() *HtmlFeed {
 	return &HtmlFeed{
-		client: newClient(),
+		client:      httpclient.NewClient(),
+		proxyClient: httpclient.NewProxyClient(),
 	}
 }
 
@@ -53,7 +55,7 @@ func (h *HtmlFeed) TryGetFeeds(url string, db *storage.Storage) (io.Reader, erro
 	if feedConfig == nil {
 		return nil, nil
 	}
-	html, err := h.getHtml(feedConfig.Url)
+	html, err := h.getHtml(feedConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +141,23 @@ func selectNode(s *goquery.Selection, selector string) *goquery.Selection {
 	return s.Find(parts[0]).Eq(num)
 }
 
-func (h *HtmlFeed) getHtml(url string) (io.ReadCloser, error) {
+func (h *HtmlFeed) getHtml(feedConfig *storage.FeedConfig) (io.ReadCloser, error) {
+	if feedConfig.UseBrowserless {
+		return h.getHtmlBrowserless(feedConfig.Url)
+	}
+	client := h.client
+	if feedConfig.UseProxy {
+		client = h.proxyClient
+	}
+	res, err := client.Get(feedConfig.Url)
+	if err != nil {
+		log.Print(err)
+		return nil, err
+	}
+	return res.Body, nil
+}
+
+func (h *HtmlFeed) getHtmlBrowserless(url string) (io.ReadCloser, error) {
 	browserless := os.Getenv("YARR_BROWSERLESS")
 	if browserless == "" {
 		return nil, nil
@@ -158,19 +176,4 @@ func (h *HtmlFeed) getHtml(url string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	return res.Body, nil
-}
-
-func newClient() *http.Client {
-	transport := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout: 10 * time.Second,
-		}).DialContext,
-		DisableKeepAlives:   true,
-		TLSHandshakeTimeout: time.Second * 10,
-	}
-	httpClient := &http.Client{
-		Timeout:   time.Second * 30,
-		Transport: transport,
-	}
-	return httpClient
 }
