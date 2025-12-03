@@ -114,6 +114,9 @@ func parseRss(doc *goquery.Document, feedConfig *storage.FeedConfig) (*rss, erro
 		} else {
 			item.PubDate = t.Format(time.RFC1123Z)
 		}
+		if item.Title == "" || item.Link == "" {
+			return
+		}
 		rss.Items = append(rss.Items, *item)
 	})
 	return rss, nil
@@ -129,6 +132,9 @@ func findTime(pubDate string) string {
 }
 
 func selectNode(s *goquery.Selection, selector string) *goquery.Selection {
+	if selector == "" {
+		return s
+	}
 	if !strings.Contains(selector, ":") {
 		return s.Find(selector)
 	}
