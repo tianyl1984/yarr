@@ -183,14 +183,7 @@ func listItems(f storage.Feed, db *storage.Storage, htmlFeed *htmlfeed.HtmlFeed)
 		}
 		return ConvertItems(feed.Items, f), nil
 	}
-	lmod := ""
-	etag := ""
-	if state := db.GetHTTPState(f.Id); state != nil {
-		lmod = state.LastModified
-		etag = state.Etag
-	}
-
-	res, err := client.getConditional(f.FeedLink, lmod, etag, f.UseProxy)
+	res, err := client.get(f.FeedLink, f.UseProxy)
 	if err != nil {
 		return nil, err
 	}
@@ -209,12 +202,6 @@ func listItems(f storage.Feed, db *storage.Storage, htmlFeed *htmlfeed.HtmlFeed)
 	feed, err := parser.ParseAndFix(res.Body, f.FeedLink, getCharset(res))
 	if err != nil {
 		return nil, err
-	}
-
-	lmod = res.Header.Get("Last-Modified")
-	etag = res.Header.Get("Etag")
-	if lmod != "" || etag != "" {
-		db.SetHTTPState(f.Id, lmod, etag)
 	}
 	return ConvertItems(feed.Items, f), nil
 }

@@ -104,14 +104,14 @@ func (w *Worker) refresher(feeds []storage.Feed) {
 	srcqueue := make(chan storage.Feed, len(feeds))
 	dstqueue := make(chan []storage.Item)
 
-	for i := 0; i < NUM_WORKERS; i++ {
+	for range NUM_WORKERS {
 		go w.worker(srcqueue, dstqueue)
 	}
 
 	for _, feed := range feeds {
 		srcqueue <- feed
 	}
-	for i := 0; i < len(feeds); i++ {
+	for range feeds {
 		items := <-dstqueue
 		if len(items) > 0 {
 			w.db.CreateItems(items)
@@ -130,6 +130,11 @@ func (w *Worker) worker(srcqueue <-chan storage.Feed, dstqueue chan<- []storage.
 		items, err := listItems(feed, w.db, w.htmlfeed)
 		if err != nil {
 			w.db.SetFeedError(feed.Id, err)
+			log.Println("同步失败,feed_id:", feed.Id, ",err:", err)
+		} else {
+			if len(items) == 0 {
+				log.Println("同步成功,但无新数据,feed_id:", feed.Id)
+			}
 		}
 		dstqueue <- items
 	}
