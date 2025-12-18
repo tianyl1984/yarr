@@ -8,3 +8,4 @@
 versioninfo.rc
 .DS_Store
 .env
+.vscode/
