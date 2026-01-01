@@ -27,7 +27,7 @@ func Authenticate(rw http.ResponseWriter, username, password, basepath string) {
 		Value:    username + ":" + secret(username, password),
 		MaxAge:   604800, // 1 week
 		Path:     basepath,
-		Secure:   true,
+		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
 }
