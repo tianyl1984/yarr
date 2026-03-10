@@ -104,6 +104,17 @@
                     </div>
                     <div class="dropdown-divider"></div>
                     <header class="dropdown-header" role="heading" aria-level="2">Subscriptions</header>
+                    <form id="opml-compare-form" enctype="multipart/form-data" tabindex="-1">
+                        <input type="file"
+                               id="opml-compare"
+                               @change="compareOPML"
+                               name="opml"
+                               style="opacity: 0; width: 1px; height: 0; position: absolute; z-index: -1;">
+                        <label class="dropdown-item mb-0 cursor-pointer" for="opml-compare" @click.stop="">
+                            <span class="icon mr-1">{% inline "compare.svg" %}</span>
+                            对比opml
+                        </label>
+                    </form>
                     <form id="opml-import-form" enctype="multipart/form-data" tabindex="-1">
                         <input type="file"
                                id="opml-import"
@@ -439,6 +450,30 @@
                     <tr><td><kbd>f</kbd> <kbd>b</kbd></td>  <td>scroll content forward / backward</td>
                     </tr>
                 </table>
+            </div>
+            <div v-else-if="settings=='compare-opml'">
+                <p class="cursor-default"><b>Compare OPML</b></p>
+                <div v-if="opmlCompareResult" class="mt-4">
+                    <!-- 使用表格展示对比结果信息 -->
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>标题</th>
+                                <th>订阅地址</th>
+                                <th>网站地址</th>
+                                <th>是否存在</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="result in opmlCompareResult" :key="result.url">
+                                <td>{{ result.title }}</td>
+                                <td class="text-center"><a :href="result.feedUrl" target="_blank">打开</a></td>
+                                <td class="text-center"><a v-if="result.siteUrl" :href="result.siteUrl" target="_blank">打开</a></td>
+                                <td class="text-center">{{ result.tip }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </modal>
     </div>

@@ -54,6 +54,7 @@ func (s *Server) handler() http.Handler {
 	r.For("/api/items", s.handleItemList)
 	r.For("/api/items/:id", s.handleItem)
 	r.For("/api/settings", s.handleSettings)
+	r.For("/opml/compare", s.handleOPMLCompare)
 	r.For("/opml/import", s.handleOPMLImport)
 	r.For("/opml/export", s.handleOPMLExport)
 	r.For("/page", s.handlePageCrawl)
@@ -432,6 +433,48 @@ func (s *Server) handleSettings(c *router.Context) {
 			c.Out.WriteHeader(http.StatusBadRequest)
 		}
 	}
+}
+
+func (s *Server) handleOPMLCompare(c *router.Context) {
+	if c.Req.Method != "POST" {
+		c.Out.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	file, _, err := c.Req.FormFile("opml")
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	doc, err := opml.Parse(file)
+	if err != nil {
+		log.Print(err)
+		c.Out.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	var result []opml.OpmlCompare
+	feeds := s.db.ListFeeds()
+	feedMap := make(map[string]storage.Feed)
+	for _, f := range feeds {
+		feedMap[f.FeedLink] = f
+	}
+	for _, f := range doc.AllFeeds() {
+		if _, exists := feedMap[f.FeedUrl]; exists {
+			result = append(result, opml.OpmlCompare{
+				Title:   f.Title,
+				FeedUrl: f.FeedUrl,
+				SiteUrl: f.SiteUrl,
+				Tip:     "存在",
+			})
+		} else {
+			result = append(result, opml.OpmlCompare{
+				Title:   f.Title,
+				FeedUrl: f.FeedUrl,
+				SiteUrl: f.SiteUrl,
+				Tip:     "不存在",
+			})
+		}
+	}
+	c.JSON(http.StatusOK, result)
 }
 
 func (s *Server) handleOPMLImport(c *router.Context) {

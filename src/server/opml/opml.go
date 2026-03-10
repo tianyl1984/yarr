@@ -6,6 +6,13 @@ import (
 	"strings"
 )
 
+type OpmlCompare struct {
+	Title   string `json:"title"`
+	FeedUrl string `json:"feedUrl"`
+	SiteUrl string `json:"siteUrl"`
+	Tip     string `json:"tip"`
+}
+
 type Folder struct {
 	Title   string
 	Folders []Folder
