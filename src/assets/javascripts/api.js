@@ -7,7 +7,14 @@
       init["headers"] = init["headers"] || {};
       init["headers"]["x-requested-by"] = "yarr";
     }
-    return fetch(resource, init);
+    return fetch(resource, init).then(function (res) {
+      // Session expired: reload so the server redirects to the SSO login page.
+      if (res.status === 401) {
+        document.location.reload();
+        return new Promise(function () {}); // halt the chain while reloading
+      }
+      return res;
+    });
   };
   var api = function (method, endpoint, data) {
     var headers = { "Content-Type": "application/json" };

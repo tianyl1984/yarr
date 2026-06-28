@@ -9,45 +9,62 @@ import (
 	"strings"
 )
 
-func IsAuthenticated(req *http.Request, username, password string) bool {
-	cookie, _ := req.Cookie("auth")
-	if cookie == nil {
-		return false
-	}
-	parts := strings.Split(cookie.Value, ":")
-	if len(parts) != 2 || !StringsEqual(parts[0], username) {
-		return false
-	}
-	return StringsEqual(parts[1], secret(username, password))
-}
+const cookieName = "auth"
 
-func Authenticate(rw http.ResponseWriter, username, password, basepath string) {
+// SetSession stores a signed session cookie identifying the logged in user.
+// The value is `username:hmac(username, secret)` so it cannot be forged
+// without knowing the server secret.
+func SetSession(rw http.ResponseWriter, basepath, username, secret string) {
 	http.SetCookie(rw, &http.Cookie{
-		Name:     "auth",
-		Value:    username + ":" + secret(username, password),
+		Name:     cookieName,
+		Value:    username + ":" + sign(username, secret),
 		MaxAge:   604800, // 1 week
-		Path:     basepath,
+		Path:     basepathOrRoot(basepath),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
 }
 
+// SessionUser returns the logged in username if the request carries a valid
+// session cookie, or ("", false) otherwise.
+func SessionUser(req *http.Request, secret string) (string, bool) {
+	cookie, _ := req.Cookie(cookieName)
+	if cookie == nil {
+		return "", false
+	}
+	username, mac, found := strings.Cut(cookie.Value, ":")
+	if !found || username == "" {
+		return "", false
+	}
+	if !stringsEqual(mac, sign(username, secret)) {
+		return "", false
+	}
+	return username, true
+}
+
+// Logout clears the session cookie.
 func Logout(rw http.ResponseWriter, basepath string) {
 	http.SetCookie(rw, &http.Cookie{
-		Name:   "auth",
+		Name:   cookieName,
 		Value:  "",
 		MaxAge: -1,
-		Path:   basepath,
+		Path:   basepathOrRoot(basepath),
 	})
 }
 
-func StringsEqual(p1, p2 string) bool {
+func basepathOrRoot(basepath string) string {
+	if basepath == "" {
+		return "/"
+	}
+	return basepath
+}
+
+func stringsEqual(p1, p2 string) bool {
 	return subtle.ConstantTimeCompare([]byte(p1), []byte(p2)) == 1
 }
 
-func secret(msg, key string) string {
+func sign(msg, key string) string {
 	mac := hmac.New(sha256.New, []byte(key))
 	mac.Write([]byte(msg))
-	src := mac.Sum(nil)
-	return hex.EncodeToString(src)
+	return hex.EncodeToString(mac.Sum(nil))
 }

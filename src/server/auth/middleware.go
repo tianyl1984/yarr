@@ -4,21 +4,17 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nkanaev/yarr/src/assets"
 	"github.com/nkanaev/yarr/src/server/router"
-	"github.com/nkanaev/yarr/src/storage"
 )
 
+// Middleware guards every request behind the cf-worker-auth SSO service.
+// Requests without a valid session cookie are redirected to the SSO login
+// page (for browser navigation) or rejected with 401 (for API calls).
 type Middleware struct {
-	Username string
-	Password string
 	BasePath string
+	AuthURL  string
+	Secret   string
 	Public   []string
-	DB       *storage.Storage
-}
-
-func unsafeMethod(method string) bool {
-	return method == "POST" || method == "PUT" || method == "DELETE"
 }
 
 func (m *Middleware) Handler(c *router.Context) {
@@ -28,35 +24,41 @@ func (m *Middleware) Handler(c *router.Context) {
 			return
 		}
 	}
-	if IsAuthenticated(c.Req, m.Username, m.Password) {
+
+	if _, ok := SessionUser(c.Req, m.Secret); ok {
 		c.Next()
 		return
 	}
 
-	rootUrl := m.BasePath + "/"
-
-	if c.Req.URL.Path != rootUrl {
-		c.Out.WriteHeader(http.StatusUnauthorized)
+	// Only redirect top-level browser navigation to the SSO login page.
+	// API/XHR calls get a plain 401 so the frontend can react.
+	if c.Req.Method == http.MethodGet && acceptsHTML(c.Req) {
+		callback := m.callbackURL(c)
+		c.Redirect(LoginURL(m.AuthURL, callback))
 		return
 	}
 
-	if c.Req.Method == "POST" {
-		username := c.Req.FormValue("username")
-		password := c.Req.FormValue("password")
-		if StringsEqual(username, m.Username) && StringsEqual(password, m.Password) {
-			Authenticate(c.Out, m.Username, m.Password, m.BasePath)
-			c.Redirect(rootUrl)
-			return
-		} else {
-			c.HTML(http.StatusOK, assets.Template("login.html"), map[string]interface{}{
-				"username": username,
-				"error":    "Invalid username/password",
-				"settings": m.DB.GetSettings(),
-			})
-			return
-		}
+	c.Out.WriteHeader(http.StatusUnauthorized)
+}
+
+// callbackURL builds this server's externally reachable /auth/callback URL,
+// honouring the proxy-provided scheme/host when present.
+func (m *Middleware) callbackURL(c *router.Context) string {
+	scheme := "http"
+	if proto := c.Req.Header.Get("X-Forwarded-Proto"); proto != "" {
+		scheme = proto
+	} else if c.Req.TLS != nil {
+		scheme = "https"
 	}
-	c.HTML(http.StatusOK, assets.Template("login.html"), map[string]interface{}{
-		"settings": m.DB.GetSettings(),
-	})
+
+	host := c.Req.Host
+	if forwarded := c.Req.Header.Get("X-Forwarded-Host"); forwarded != "" {
+		host = forwarded
+	}
+
+	return scheme + "://" + host + m.BasePath + "/auth/callback"
+}
+
+func acceptsHTML(req *http.Request) bool {
+	return strings.Contains(req.Header.Get("Accept"), "text/html")
 }

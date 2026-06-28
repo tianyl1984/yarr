@@ -23,9 +23,9 @@ type Server struct {
 
 	BasePath string
 
-	// auth
-	Username string
-	Password string
+	// auth (cf-worker-auth SSO)
+	AuthURL    string
+	AuthSecret string
 	// https
 	CertFile string
 	KeyFile  string

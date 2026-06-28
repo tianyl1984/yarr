@@ -1,10 +1,10 @@
 package main
 
 import (
-	"bufio"
+	"crypto/rand"
+	"encoding/hex"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"strings"
@@ -27,23 +27,17 @@ func opt(envVar, defaultValue string) string {
 	return defaultValue
 }
 
-func parseAuthfile(authfile io.Reader) (username, password string, err error) {
-	scanner := bufio.NewScanner(authfile)
-	for scanner.Scan() {
-		line := scanner.Text()
-		parts := strings.SplitN(line, ":", 2)
-		if len(parts) != 2 {
-			return "", "", fmt.Errorf("wrong syntax (expected `username:password`)")
-		}
-		username = parts[0]
-		password = parts[1]
+func randomSecret() string {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		log.Fatal("Failed to generate session secret: ", err)
 	}
-	return username, password, nil
+	return hex.EncodeToString(buf)
 }
 
 func main() {
 
-	var addr, db, authfile, auth, certfile, keyfile, basepath, logfile string
+	var addr, db, certfile, keyfile, basepath, logfile, authurl, authsecret string
 	var ver, open bool
 
 	flag.CommandLine.SetOutput(os.Stdout)
@@ -58,8 +52,8 @@ func main() {
 
 	flag.StringVar(&addr, "addr", opt("YARR_ADDR", "127.0.0.1:7070"), "address to run server on")
 	flag.StringVar(&basepath, "base", opt("YARR_BASE", ""), "base path of the service url")
-	flag.StringVar(&authfile, "auth-file", opt("YARR_AUTHFILE", ""), "`path` to a file containing username:password. Takes precedence over --auth (or YARR_AUTH)")
-	flag.StringVar(&auth, "auth", opt("YARR_AUTH", ""), "string with username and password in the format `username:password`")
+	flag.StringVar(&authurl, "auth-url", opt("YARR_AUTH_URL", ""), "base `url` of the cf-worker-auth SSO service (enables login when set)")
+	flag.StringVar(&authsecret, "auth-secret", opt("YARR_AUTH_SECRET", ""), "secret used to sign session cookies (random per start if unset)")
 	flag.StringVar(&certfile, "cert-file", opt("YARR_CERTFILE", ""), "`path` to cert file for https")
 	flag.StringVar(&keyfile, "key-file", opt("YARR_KEYFILE", ""), "`path` to key file for https")
 	flag.StringVar(&db, "db", opt("YARR_DB", ""), "mysql connection string")
@@ -95,25 +89,6 @@ func main() {
 
 	// log.Printf("using db file %s", db)
 
-	var username, password string
-	var err error
-	if authfile != "" {
-		f, err := os.Open(authfile)
-		if err != nil {
-			log.Fatal("Failed to open auth file: ", err)
-		}
-		defer f.Close()
-		username, password, err = parseAuthfile(f)
-		if err != nil {
-			log.Fatal("Failed to parse auth file: ", err)
-		}
-	} else if auth != "" {
-		username, password, err = parseAuthfile(strings.NewReader(auth))
-		if err != nil {
-			log.Fatal("Failed to parse auth literal: ", err)
-		}
-	}
-
 	if (certfile != "" || keyfile != "") && (certfile == "" || keyfile == "") {
 		log.Fatalf("Both cert & key files are required")
 	}
@@ -134,9 +109,13 @@ func main() {
 		srv.KeyFile = keyfile
 	}
 
-	if username != "" && password != "" {
-		srv.Username = username
-		srv.Password = password
+	if authurl != "" {
+		srv.AuthURL = strings.TrimRight(authurl, "/")
+		if authsecret == "" {
+			authsecret = randomSecret()
+			log.Print("YARR_AUTH_SECRET not set: using a random session secret (sessions reset on restart)")
+		}
+		srv.AuthSecret = authsecret
 	}
 
 	log.Printf("starting server at %s", srv.GetAddr())

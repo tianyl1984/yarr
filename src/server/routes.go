@@ -29,13 +29,12 @@ func (s *Server) handler() http.Handler {
 
 	r.Use(gzip.Middleware)
 
-	if s.Username != "" && s.Password != "" {
+	if s.AuthURL != "" {
 		a := &auth.Middleware{
 			BasePath: s.BasePath,
-			Username: s.Username,
-			Password: s.Password,
-			Public:   []string{"/static", "/fever", "/manifest.json"},
-			DB:       s.db,
+			AuthURL:  s.AuthURL,
+			Secret:   s.AuthSecret,
+			Public:   []string{"/static", "/fever", "/manifest.json", "/auth/callback"},
 		}
 		r.Use(a.Handler)
 	}
@@ -59,6 +58,7 @@ func (s *Server) handler() http.Handler {
 	r.For("/opml/export", s.handleOPMLExport)
 	r.For("/page", s.handlePageCrawl)
 	r.For("/htmlFeed", s.handleHtmlFeed)
+	r.For("/auth/callback", s.handleAuthCallback)
 	r.For("/logout", s.handleLogout)
 
 	return r
@@ -67,7 +67,7 @@ func (s *Server) handler() http.Handler {
 func (s *Server) handleIndex(c *router.Context) {
 	c.HTML(http.StatusOK, assets.Template("index.html"), map[string]interface{}{
 		"settings":      s.db.GetSettings(),
-		"authenticated": s.Username != "" && s.Password != "",
+		"authenticated": s.AuthURL != "",
 	})
 }
 
@@ -597,6 +597,31 @@ func (s *Server) handleHtmlFeed(c *router.Context) {
 		return
 	}
 	c.XML(reader)
+}
+
+// handleAuthCallback is the redirect target of the cf-worker-auth SSO service.
+// It exchanges the one-time token for the user's info and, on success,
+// establishes a local session cookie.
+func (s *Server) handleAuthCallback(c *router.Context) {
+	rootUrl := s.BasePath + "/"
+
+	token := c.Req.URL.Query().Get("token")
+	if token == "" {
+		c.Out.WriteHeader(http.StatusBadRequest)
+		c.Out.Write([]byte("missing token"))
+		return
+	}
+
+	info, err := auth.FetchUserInfo(s.AuthURL, token)
+	if err != nil {
+		log.Print("auth callback failed: ", err)
+		c.Out.WriteHeader(http.StatusUnauthorized)
+		c.Out.Write([]byte("authentication failed"))
+		return
+	}
+
+	auth.SetSession(c.Out, s.BasePath, info.Login, s.AuthSecret)
+	c.Redirect(rootUrl)
 }
 
 func (s *Server) handleLogout(c *router.Context) {
