@@ -1,7 +1,7 @@
 FROM golang:alpine3.22 AS build
 # RUN apk add build-base git
 WORKDIR /src
-COPY . .
+COPY backend/ .
 RUN go build -ldflags="-s -w -X 'main.Version=2.5'" -o out/yarr ./cmd/yarr
 
 FROM alpine:3.22

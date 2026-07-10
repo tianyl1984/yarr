@@ -6,8 +6,8 @@ name: yarr
 services:
   yarr:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: deploy/Dockerfile
     container_name: yarr
     image: yarr:latest
     ports:

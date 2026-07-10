@@ -1,6 +1,6 @@
-/_output
-/out
-/yarr
+_output/
+out/
+yarr
 *.db
 *.db-shm
 *.db-wal
