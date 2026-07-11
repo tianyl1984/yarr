@@ -168,7 +168,7 @@ function compareOPML(event) {
         Import
       </label>
     </form>
-    <a class="dropdown-item" href="./opml/export">
+    <a class="dropdown-item" href="./api/opml/export">
       <Icon name="upload" class="mr-1" />
       Export
     </a>

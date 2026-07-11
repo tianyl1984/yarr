@@ -30,14 +30,18 @@ func (m *Middleware) Handler(c *router.Context) {
 		return
 	}
 
+	loginURL := LoginURL(m.AuthURL, m.callbackURL(c))
+
 	// Only redirect top-level browser navigation to the SSO login page.
-	// API/XHR calls get a plain 401 so the frontend can react.
+	// API/XHR calls get a plain 401, but we expose the SSO login URL in a
+	// header so the (statically-served) SPA can send the browser there
+	// itself — a bare reload would just re-serve index.html and loop.
 	if c.Req.Method == http.MethodGet && acceptsHTML(c.Req) {
-		callback := m.callbackURL(c)
-		c.Redirect(LoginURL(m.AuthURL, callback))
+		c.Redirect(loginURL)
 		return
 	}
 
+	c.Out.Header().Set("X-Auth-Login-Url", loginURL)
 	c.Out.WriteHeader(http.StatusUnauthorized)
 }
 
@@ -56,7 +60,7 @@ func (m *Middleware) callbackURL(c *router.Context) string {
 		host = forwarded
 	}
 
-	return scheme + "://" + host + m.BasePath + "/auth/callback"
+	return scheme + "://" + host + m.BasePath + "/api/auth/callback"
 }
 
 func acceptsHTML(req *http.Request) bool {

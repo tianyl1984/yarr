@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/web-manifest-combined.json",
+  "name": "yarr!",
+  "short_name": "yarr",
+  "description": "yet another rss reader",
+  "display": "standalone",
+  "start_url": "./",
+  "icons": [
+    {
+      "src": "./favicon.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    }
+  ]
+}

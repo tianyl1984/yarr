@@ -16,11 +16,6 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': backend,
-      '/opml': backend,
-      '/logout': backend,
-      '/page': backend,
-      '/manifest.json': backend,
-      '/static': backend,
     },
   },
 })

@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
 
-	"github.com/nkanaev/yarr/src/assets"
 	"github.com/nkanaev/yarr/src/content/htmlutil"
 	"github.com/nkanaev/yarr/src/content/readability"
 	"github.com/nkanaev/yarr/src/content/sanitizer"
@@ -34,14 +32,11 @@ func (s *Server) handler() http.Handler {
 			BasePath: s.BasePath,
 			AuthURL:  s.AuthURL,
 			Secret:   s.AuthSecret,
-			Public:   []string{"/static", "/fever", "/manifest.json", "/auth/callback"},
+			Public:   []string{"/api/auth/callback"},
 		}
 		r.Use(a.Handler)
 	}
 
-	r.For("/", s.handleIndex)
-	r.For("/manifest.json", s.handleManifest)
-	r.For("/static/*path", s.handleStatic)
 	r.For("/api/status", s.handleStatus)
 	r.For("/api/folders", s.handleFolderList)
 	r.For("/api/folders/:id", s.handleFolder)
@@ -53,50 +48,15 @@ func (s *Server) handler() http.Handler {
 	r.For("/api/items", s.handleItemList)
 	r.For("/api/items/:id", s.handleItem)
 	r.For("/api/settings", s.handleSettings)
-	r.For("/opml/compare", s.handleOPMLCompare)
-	r.For("/opml/import", s.handleOPMLImport)
-	r.For("/opml/export", s.handleOPMLExport)
-	r.For("/page", s.handlePageCrawl)
-	r.For("/htmlFeed", s.handleHtmlFeed)
-	r.For("/auth/callback", s.handleAuthCallback)
-	r.For("/logout", s.handleLogout)
+	r.For("/api/opml/compare", s.handleOPMLCompare)
+	r.For("/api/opml/import", s.handleOPMLImport)
+	r.For("/api/opml/export", s.handleOPMLExport)
+	r.For("/api/page", s.handlePageCrawl)
+	r.For("/api/htmlFeed", s.handleHtmlFeed)
+	r.For("/api/auth/callback", s.handleAuthCallback)
+	r.For("/api/logout", s.handleLogout)
 
 	return r
-}
-
-func (s *Server) handleIndex(c *router.Context) {
-	c.HTML(http.StatusOK, assets.Template("index.html"), map[string]interface{}{
-		"settings":      s.db.GetSettings(),
-		"authenticated": s.AuthURL != "",
-	})
-}
-
-func (s *Server) handleStatic(c *router.Context) {
-	// don't serve templates
-	dir, name := filepath.Split(c.Vars["path"])
-	if dir == "" && strings.HasSuffix(name, ".html") {
-		c.Out.WriteHeader(http.StatusNotFound)
-		return
-	}
-	http.StripPrefix(s.BasePath+"/static/", http.FileServer(http.FS(assets.FS))).ServeHTTP(c.Out, c.Req)
-}
-
-func (s *Server) handleManifest(c *router.Context) {
-	c.JSON(http.StatusOK, map[string]interface{}{
-		"$schema":     "https://json.schemastore.org/web-manifest-combined.json",
-		"name":        "yarr!",
-		"short_name":  "yarr",
-		"description": "yet another rss reader",
-		"display":     "standalone",
-		"start_url":   "/" + strings.TrimPrefix(s.BasePath, "/"),
-		"icons": []map[string]interface{}{
-			{
-				"src":   s.BasePath + "/static/graphicarts/favicon.png",
-				"sizes": "64x64",
-				"type":  "image/png",
-			},
-		},
-	})
 }
 
 func (s *Server) handleStatus(c *router.Context) {

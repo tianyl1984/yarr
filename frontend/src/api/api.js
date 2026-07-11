@@ -1,14 +1,28 @@
+// Latched once a 401 is seen so the reload happens exactly once. Without this,
+// every concurrent request (the initial refresh burst plus the stats poll) would
+// each fire its own reload() and keep hammering the API in a loop before the
+// navigation to the SSO login page completes.
+let sessionExpired = false
+const never = new Promise(function () {}) // halts a chain without resolving
+
 const xfetch = function (resource, init) {
+  if (sessionExpired) return never
   init = init || {}
   if (['post', 'put', 'delete'].indexOf(init.method) !== -1) {
     init['headers'] = init['headers'] || {}
     init['headers']['x-requested-by'] = 'yarr'
   }
   return fetch(resource, init).then(function (res) {
-    // Session expired: reload so the server redirects to the SSO login page.
+    // Session expired: send the browser to the SSO login page. The backend
+    // hands us the login URL in a header because the SPA is served statically
+    // (a plain reload would just re-serve index.html and loop forever).
     if (res.status === 401) {
-      document.location.reload()
-      return new Promise(function () {}) // halt the chain while reloading
+      if (!sessionExpired) {
+        sessionExpired = true
+        const loginUrl = res.headers.get('X-Auth-Login-Url')
+        document.location.href = loginUrl || document.location.href
+      }
+      return never // halt the chain while redirecting
     }
     return res
   })
@@ -100,21 +114,21 @@ export const api = {
     return request('get', './api/status').then(json)
   },
   upload_opml: function (form) {
-    return xfetch('./opml/import', {
+    return xfetch('./api/opml/import', {
       method: 'post',
       body: new FormData(form),
     })
   },
   compare_opml: function (form) {
-    return xfetch('./opml/compare', {
+    return xfetch('./api/opml/compare', {
       method: 'post',
       body: new FormData(form),
     }).then(json)
   },
   logout: function () {
-    return request('post', './logout')
+    return request('post', './api/logout')
   },
   crawl: function (url) {
-    return request('get', './page?url=' + encodeURIComponent(url)).then(json)
+    return request('get', './api/page?url=' + encodeURIComponent(url)).then(json)
   },
 }
