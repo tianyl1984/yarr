@@ -4,13 +4,23 @@ x-env-file: &env_file
 name: yarr
 
 services:
-  yarr:
+  yarr-backend:
     build:
       context: ..
-      dockerfile: deploy/Dockerfile
-    container_name: yarr
-    image: yarr:latest
-    ports:
-      - "7070:7070"
+      dockerfile: deploy/Dockerfile.backend
+    container_name: yarr-backend
+    image: yarr-backend:latest
     restart: unless-stopped
     env_file: *env_file
+
+  yarr-frontend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.frontend
+    container_name: yarr-frontend
+    image: yarr-frontend:latest
+    ports:
+      - "7070:80"
+    restart: unless-stopped
+    depends_on:
+      - yarr-backend
