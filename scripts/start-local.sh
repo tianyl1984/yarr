@@ -39,9 +39,9 @@ fi
 # YARR_AUTH_URL would make every /api call return 401 — which the frontend turns
 # into a page reload, i.e. an infinite reload loop. Drop auth for local dev.
 # Set LOCAL_AUTH=1 to keep it (only useful if you have another way to log in).
-if [ "${LOCAL_AUTH:-}" != "1" ]; then
-  unset YARR_AUTH_URL YARR_AUTH_SECRET
-fi
+# if [ "${LOCAL_AUTH:-}" != "1" ]; then
+  # unset YARR_AUTH_URL YARR_AUTH_SECRET
+# fi
 
 # Build the backend (optionally with the debug tag for disk-served assets).
 if [ "${1:-}" = "--debug" ]; then

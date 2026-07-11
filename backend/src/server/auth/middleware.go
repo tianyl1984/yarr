@@ -30,18 +30,19 @@ func (m *Middleware) Handler(c *router.Context) {
 		return
 	}
 
-	loginURL := LoginURL(m.AuthURL, m.callbackURL(c))
-
-	// Only redirect top-level browser navigation to the SSO login page.
-	// API/XHR calls get a plain 401, but we expose the SSO login URL in a
-	// header so the (statically-served) SPA can send the browser there
-	// itself — a bare reload would just re-serve index.html and loop.
+	// Only direct browser navigation can be redirected server-side (here the
+	// Host header is the browser's). In this fork that path is unused — the
+	// SPA is served separately and only reaches us via XHR under /api.
 	if c.Req.Method == http.MethodGet && acceptsHTML(c.Req) {
-		c.Redirect(loginURL)
+		c.Redirect(LoginURL(m.AuthURL, m.callbackURL(c)))
 		return
 	}
 
-	c.Out.Header().Set("X-Auth-Login-Url", loginURL)
+	// API/XHR: hand the SPA the SSO base URL and let it build the login URL
+	// from window.location.origin. Behind the frontend proxy the backend
+	// can't see the browser's real scheme/host/port (nginx drops the port,
+	// Vite rewrites Host to its own), so the callback must be built client-side.
+	c.Out.Header().Set("X-Auth-Url", m.AuthURL)
 	c.Out.WriteHeader(http.StatusUnauthorized)
 }
 

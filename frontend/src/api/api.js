@@ -14,13 +14,18 @@ const xfetch = function (resource, init) {
   }
   return fetch(resource, init).then(function (res) {
     // Session expired: send the browser to the SSO login page. The backend
-    // hands us the login URL in a header because the SPA is served statically
-    // (a plain reload would just re-serve index.html and loop forever).
+    // gives us the SSO base URL in a header; we build the callback from the
+    // browser's own origin (the backend can't see it behind the proxy) so the
+    // SSO service redirects back to the address the user actually opened.
     if (res.status === 401) {
       if (!sessionExpired) {
         sessionExpired = true
-        const loginUrl = res.headers.get('X-Auth-Login-Url')
-        document.location.href = loginUrl || document.location.href
+        const authUrl = res.headers.get('X-Auth-Url')
+        if (authUrl) {
+          const callback = window.location.origin + '/api/auth/callback'
+          document.location.href =
+            authUrl.replace(/\/+$/, '') + '/login?callback=' + encodeURIComponent(callback)
+        }
       }
       return never // halt the chain while redirecting
     }
