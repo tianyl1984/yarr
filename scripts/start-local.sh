@@ -11,9 +11,7 @@
 # frontend/vite.config.js). Open http://localhost:5173 in the browser.
 #
 # Usage:
-#   ./scripts/start-local.sh          # backend + frontend dev server
-#   ./scripts/start-local.sh --debug  # same, but backend serves its own embedded
-#                                      # assets from disk (backend/src/assets)
+#   ./scripts/start-local.sh          # backend API + frontend dev server
 #
 # Press Ctrl+C to stop both processes.
 
@@ -43,12 +41,8 @@ fi
   # unset YARR_AUTH_URL YARR_AUTH_SECRET
 # fi
 
-# Build the backend (optionally with the debug tag for disk-served assets).
-if [ "${1:-}" = "--debug" ]; then
-  ( cd backend && go build -tags debug -o out/yarr ./cmd/yarr )
-else
-  ( cd backend && go build -o out/yarr ./cmd/yarr )
-fi
+# Build the backend.
+( cd backend && go build -o out/yarr ./cmd/yarr )
 
 # Install frontend dependencies on first run.
 if [ ! -d frontend/node_modules ]; then

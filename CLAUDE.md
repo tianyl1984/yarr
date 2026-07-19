@@ -4,19 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-`yarr` is a self-hosted RSS/Atom/RDF feed reader written in Go, with a server-rendered
-index page plus a vanilla-JS/Vue frontend served from embedded assets. This is
-`tianyl1984/yarr`, a personal fork of `nkanaev/yarr` — it has diverged from upstream in
-notable ways (see "Fork-specific differences" below), so don't assume upstream docs,
-Makefile targets, or the sqlite storage backend still apply.
+`yarr` is a self-hosted RSS/Atom/RDF feed reader. The backend is a Go JSON API server
+(`/api/*`); the frontend is a separate Vue 3 + Vite single-page app that talks to that
+API. This is `tianyl1984/yarr`, a personal fork of `nkanaev/yarr` — it has diverged from
+upstream in notable ways (see "Fork-specific differences" below), so don't assume
+upstream docs, Makefile targets, the sqlite storage backend, or the old embedded
+server-rendered frontend still apply.
 
 ## Repo layout
 
 ```
-backend/   Go module root (go.mod/go.sum/vendor, cmd/, src/) — all server + frontend-asset code
-frontend/  placeholder for a standalone frontend once it's split out (currently empty — see Frontend below)
-scripts/   helper shell scripts (e.g. scripts/deploy-docker.sh)
-deploy/    deployment config: Dockerfile, docker-compose.yml, .env.example
+backend/   Go module root (go.mod/go.sum/vendor, cmd/, src/) — the JSON API server
+frontend/  standalone Vue 3 + Vite SPA (package.json, vite.config.js, src/) — see Frontend below
+scripts/   helper shell scripts (deploy-docker.sh, start-local.sh)
+deploy/    deployment config: Dockerfile.backend, Dockerfile.frontend, nginx.conf, docker-compose.yml, .env.example
 ```
 
 `backend/` is the Go module root — run `go build`/`go run`/`go vet` etc. from inside
@@ -29,12 +30,23 @@ reference `make test` / `make darwin_arm64_gui` etc. from the upstream template 
 these targets no longer exist here — treat those workflows as stale/inoperative rather
 than authoritative).
 
-- Build the server binary (from `backend/`): `go build -o out/yarr ./cmd/yarr`
-- Run directly (from `backend/`): `go run ./cmd/yarr -db "$YARR_DB"` (requires a reachable MySQL instance; see Configuration)
-- Serve assets from disk instead of the embedded FS (for frontend iteration without rebuilding, from `backend/`): `go build -tags debug -o out/yarr ./cmd/yarr` — this excludes `src/assets/assetsfs.go` (guarded by `//go:build !debug`) so `assets.FS.Open` falls back to `os.DirFS("src/assets")`, meaning JS/CSS/HTML edits are picked up on refresh, no recompile needed. Note this `DirFS` path is relative to the process's working directory, so run the binary from `backend/` too.
-- There are no `*_test.go` files in this repo currently — `go test ./...` (from `backend/`) will report "no test files" everywhere.
+Backend (from `backend/`):
+
+- Build the server binary: `go build -o out/yarr ./cmd/yarr`
+- Run directly: `go run ./cmd/yarr -db "$YARR_DB"` (requires a reachable MySQL instance; see Configuration). Serves the JSON API on `YARR_ADDR` (default `127.0.0.1:7070`); it no longer serves any frontend assets.
+- There are no `*_test.go` files in this repo currently — `go test ./...` will report "no test files" everywhere.
 - Small standalone debugging utilities live under `backend/cmd/` and can be run directly, e.g. `go run ./cmd/feed2json <url|filepath>`, `go run ./cmd/readability <url>`, `go run ./cmd/htmlfeed` (hardcoded scraping test).
-- Docker: `./scripts/deploy-docker.sh` (runnable from anywhere; it `cd`s to the repo root) runs `docker compose -f deploy/docker-compose.yml up --build -d` — builds `deploy/Dockerfile` with the repo root as build context (so it can `COPY backend/ .`), reads env from `deploy/.env` (copy `deploy/.env.example` there first).
+
+Frontend (from `frontend/`):
+
+- Install deps: `npm ci` (or `npm install`).
+- Dev server with hot reload: `npm run dev` — serves on `:5173` and proxies `/api` to `http://127.0.0.1:7070` (see `vite.config.js`), so run the backend alongside it.
+- Production build: `npm run build` (outputs to `frontend/dist/`); `npm run preview` serves the built output.
+
+Docker / other:
+
+- `./scripts/deploy-docker.sh` (runnable from anywhere; it `cd`s to the repo root) runs `docker compose -f deploy/docker-compose.yml up --build -d` — builds two services from the repo root as build context: `yarr-backend` (`deploy/Dockerfile.backend`, `COPY backend/ .`) and `yarr-frontend` (`deploy/Dockerfile.frontend`, builds the Vite app and serves `dist/` via nginx, proxying `/api/` to the backend per `deploy/nginx.conf`). Only the frontend publishes a port (`7070:80`). Reads env from `deploy/.env` (copy `deploy/.env.example` there first).
+- `./scripts/start-local.sh` — local (non-Docker) startup helper.
 
 ## Configuration
 
@@ -107,13 +119,19 @@ service:
 
 ### Frontend
 
-Currently still lives under `backend/src/assets` (not yet split into `frontend/` — see
-Repo layout above; that's a planned future refactor, not done). Server-rendered
-`src/assets/index.html` (Go `html/template`, delimiters `{% %}`) bootstrapped with
-initial settings, plus a Vue 2 (`vue.min.js`) SPA in `src/assets/javascripts/app.js`
-talking to the JSON API via `api.js`. No JS build step / bundler / package.json — these
-are plain scripts served as-is (embedded into the binary at build time via
-`src/assets/assetsfs.go`, unless built with `-tags debug`).
+Lives in the top-level `frontend/` directory as a standalone Vue 3 + Vite SPA
+(`package.json` name `yarr-frontend`) — fully split out from the backend. Entry is
+`frontend/index.html` → `src/main.js` → `src/App.vue`; source is organized under
+`src/` (`api/`, `components/`, `state/`, `directives/`, `icons/`, `styles/`,
+`keybindings.js`). It talks to the backend purely over the `/api/*` JSON API. The `@`
+import alias resolves to `frontend/src`.
+
+The old embedded server-rendered frontend (`backend/src/assets`: a Go `html/template`
+`index.html` plus a Vue 2 SPA served from an embedded FS, with a `-tags debug` DirFS
+fallback) has been **removed** — the backend no longer serves any HTML/JS/CSS.
+
+In production the built `dist/` is served by nginx (`deploy/Dockerfile.frontend` +
+`deploy/nginx.conf`), which also reverse-proxies `/api/` to the backend container.
 
 ## Fork-specific differences from upstream nkanaev/yarr
 
@@ -124,4 +142,5 @@ doesn't apply here:
 - Added: `/opml/compare` endpoint to diff an uploaded OPML against existing subscriptions.
 - Added: optional cf-worker-auth SSO login layer (`src/server/auth`), off by default.
 - Removed: the upstream Makefile/multi-platform build tooling isn't present in this repo (see Commands above) even though the GitHub Actions workflows referencing it are still checked in.
-- Restructured into `backend/`, `frontend/` (placeholder), `scripts/`, `deploy/` top-level directories (this repo previously had `cmd/`, `src/`, `go.mod` etc. directly at the repo root — the Go module root is now `backend/`).
+- Restructured into `backend/`, `frontend/`, `scripts/`, `deploy/` top-level directories (this repo previously had `cmd/`, `src/`, `go.mod` etc. directly at the repo root — the Go module root is now `backend/`).
+- Frontend split out of the backend: it's now a standalone Vue 3 + Vite app under `frontend/`, and the old embedded server-rendered assets (`backend/src/assets`, Vue 2) have been removed — the backend is a pure `/api/*` JSON server. Deployed as two containers (`yarr-backend` + nginx-served `yarr-frontend`).
