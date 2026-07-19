@@ -21,14 +21,9 @@ type Server struct {
 	cache       map[string]interface{}
 	cache_mutex *sync.Mutex
 
-	BasePath string
-
 	// auth (cf-worker-auth SSO)
 	AuthURL    string
 	AuthSecret string
-	// https
-	CertFile string
-	KeyFile  string
 }
 
 func NewServer(db *storage.Storage, addr string) *Server {
@@ -43,11 +38,7 @@ func NewServer(db *storage.Storage, addr string) *Server {
 }
 
 func (h *Server) GetAddr() string {
-	proto := "http"
-	if h.CertFile != "" && h.KeyFile != "" {
-		proto = "https"
-	}
-	return proto + "://" + h.Addr + h.BasePath
+	return "http://" + h.Addr
 }
 
 func (s *Server) Start() {
@@ -77,12 +68,7 @@ func (s *Server) Start() {
 	}
 
 	httpserver := &http.Server{Handler: s.handler()}
-	if s.CertFile != "" && s.KeyFile != "" {
-		err = httpserver.ServeTLS(ln, s.CertFile, s.KeyFile)
-		ln.Close()
-	} else {
-		err = httpserver.Serve(ln)
-	}
+	err = httpserver.Serve(ln)
 
 	if err != http.ErrServerClosed {
 		log.Fatal(err)

@@ -11,15 +11,14 @@ import (
 // Requests without a valid session cookie are redirected to the SSO login
 // page (for browser navigation) or rejected with 401 (for API calls).
 type Middleware struct {
-	BasePath string
-	AuthURL  string
-	Secret   string
-	Public   []string
+	AuthURL string
+	Secret  string
+	Public  []string
 }
 
 func (m *Middleware) Handler(c *router.Context) {
 	for _, path := range m.Public {
-		if strings.HasPrefix(c.Req.URL.Path, m.BasePath+path) {
+		if strings.HasPrefix(c.Req.URL.Path, path) {
 			c.Next()
 			return
 		}
@@ -61,7 +60,7 @@ func (m *Middleware) callbackURL(c *router.Context) string {
 		host = forwarded
 	}
 
-	return scheme + "://" + host + m.BasePath + "/api/auth/callback"
+	return scheme + "://" + host + "/api/auth/callback"
 }
 
 func acceptsHTML(req *http.Request) bool {

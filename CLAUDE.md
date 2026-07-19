@@ -56,11 +56,13 @@ Runtime config is via CLI flags or environment variables (see `flag` definitions
 
 - `YARR_DB` — MySQL DSN, e.g. `user:pass@tcp(127.0.0.1:3306)/yarr?charset=utf8mb4&parseTime=true&multiStatements=true`. Required; the process fatals on startup if unset.
 - `YARR_ADDR` — listen address (default `127.0.0.1:7070`); `unix:<path>` is supported for a Unix socket.
-- `YARR_BASE` — base path if served behind a subpath.
 - `YARR_PROXY` — outbound proxy for feed fetching.
 - `YARR_BROWSERLESS` — browserless endpoint (used for JS-rendered page scraping).
 - `YARR_AUTH_URL` / `YARR_AUTH_SECRET` — enable cf-worker-auth SSO login (see Auth below); if `YARR_AUTH_URL` is unset, the whole app is unauthenticated.
-- `YARR_CERTFILE` / `YARR_KEYFILE` — enable HTTPS.
+- `YARR_LOGFILE` — path to a log file to use instead of stdout.
+
+(The backend serves plain HTTP only and at the root path — TLS termination and any
+subpath routing are handled by the nginx frontend / reverse proxy, not the Go server.)
 
 ## Architecture
 

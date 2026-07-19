@@ -14,12 +14,12 @@ const cookieName = "auth"
 // SetSession stores a signed session cookie identifying the logged in user.
 // The value is `username:hmac(username, secret)` so it cannot be forged
 // without knowing the server secret.
-func SetSession(rw http.ResponseWriter, basepath, username, secret string) {
+func SetSession(rw http.ResponseWriter, username, secret string) {
 	http.SetCookie(rw, &http.Cookie{
 		Name:     cookieName,
 		Value:    username + ":" + sign(username, secret),
 		MaxAge:   604800, // 1 week
-		Path:     basepathOrRoot(basepath),
+		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
@@ -43,20 +43,13 @@ func SessionUser(req *http.Request, secret string) (string, bool) {
 }
 
 // Logout clears the session cookie.
-func Logout(rw http.ResponseWriter, basepath string) {
+func Logout(rw http.ResponseWriter) {
 	http.SetCookie(rw, &http.Cookie{
 		Name:   cookieName,
 		Value:  "",
 		MaxAge: -1,
-		Path:   basepathOrRoot(basepath),
+		Path:   "/",
 	})
-}
-
-func basepathOrRoot(basepath string) string {
-	if basepath == "" {
-		return "/"
-	}
-	return basepath
 }
 
 func stringsEqual(p1, p2 string) bool {

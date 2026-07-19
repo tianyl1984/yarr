@@ -37,8 +37,8 @@ func randomSecret() string {
 
 func main() {
 
-	var addr, db, certfile, keyfile, basepath, logfile, authurl, authsecret string
-	var ver, open bool
+	var addr, db, logfile, authurl, authsecret string
+	var ver bool
 
 	flag.CommandLine.SetOutput(os.Stdout)
 
@@ -51,15 +51,11 @@ func main() {
 	}
 
 	flag.StringVar(&addr, "addr", opt("YARR_ADDR", "127.0.0.1:7070"), "address to run server on")
-	flag.StringVar(&basepath, "base", opt("YARR_BASE", ""), "base path of the service url")
 	flag.StringVar(&authurl, "auth-url", opt("YARR_AUTH_URL", ""), "base `url` of the cf-worker-auth SSO service (enables login when set)")
 	flag.StringVar(&authsecret, "auth-secret", opt("YARR_AUTH_SECRET", ""), "secret used to sign session cookies (random per start if unset)")
-	flag.StringVar(&certfile, "cert-file", opt("YARR_CERTFILE", ""), "`path` to cert file for https")
-	flag.StringVar(&keyfile, "key-file", opt("YARR_KEYFILE", ""), "`path` to key file for https")
 	flag.StringVar(&db, "db", opt("YARR_DB", ""), "mysql connection string")
 	flag.StringVar(&logfile, "log-file", opt("YARR_LOGFILE", ""), "`path` to log file to use instead of stdout")
 	flag.BoolVar(&ver, "version", false, "print application version")
-	flag.BoolVar(&open, "open", false, "open the server in browser")
 	flag.Parse()
 
 	if ver {
@@ -79,18 +75,8 @@ func main() {
 		log.SetOutput(os.Stdout)
 	}
 
-	if open && strings.HasPrefix(addr, "unix:") {
-		log.Fatal("Cannot open ", addr, " in browser")
-	}
-
 	if db == "" {
 		log.Fatal("Failed to get db config")
-	}
-
-	// log.Printf("using db file %s", db)
-
-	if (certfile != "" || keyfile != "") && (certfile == "" || keyfile == "") {
-		log.Fatalf("Both cert & key files are required")
 	}
 
 	store, err := storage.New(db)
@@ -99,15 +85,6 @@ func main() {
 	}
 
 	srv := server.NewServer(store, addr)
-
-	if basepath != "" {
-		srv.BasePath = "/" + strings.Trim(basepath, "/")
-	}
-
-	if certfile != "" && keyfile != "" {
-		srv.CertFile = certfile
-		srv.KeyFile = keyfile
-	}
 
 	if authurl != "" {
 		srv.AuthURL = strings.TrimRight(authurl, "/")

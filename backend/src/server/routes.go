@@ -23,16 +23,15 @@ import (
 )
 
 func (s *Server) handler() http.Handler {
-	r := router.NewRouter(s.BasePath)
+	r := router.NewRouter()
 
 	r.Use(gzip.Middleware)
 
 	if s.AuthURL != "" {
 		a := &auth.Middleware{
-			BasePath: s.BasePath,
-			AuthURL:  s.AuthURL,
-			Secret:   s.AuthSecret,
-			Public:   []string{"/api/auth/callback"},
+			AuthURL: s.AuthURL,
+			Secret:  s.AuthSecret,
+			Public:  []string{"/api/auth/callback"},
 		}
 		r.Use(a.Handler)
 	}
@@ -564,8 +563,6 @@ func (s *Server) handleHtmlFeed(c *router.Context) {
 // It exchanges the one-time token for the user's info and, on success,
 // establishes a local session cookie.
 func (s *Server) handleAuthCallback(c *router.Context) {
-	rootUrl := s.BasePath + "/"
-
 	token := c.Req.URL.Query().Get("token")
 	if token == "" {
 		c.Out.WriteHeader(http.StatusBadRequest)
@@ -581,11 +578,11 @@ func (s *Server) handleAuthCallback(c *router.Context) {
 		return
 	}
 
-	auth.SetSession(c.Out, s.BasePath, info.Login, s.AuthSecret)
-	c.Redirect(rootUrl)
+	auth.SetSession(c.Out, info.Login, s.AuthSecret)
+	c.Redirect("/")
 }
 
 func (s *Server) handleLogout(c *router.Context) {
-	auth.Logout(c.Out, s.BasePath)
+	auth.Logout(c.Out)
 	c.Out.WriteHeader(http.StatusNoContent)
 }
