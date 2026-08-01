@@ -13,25 +13,27 @@ import (
 type ItemStatus int
 
 const (
-	UNREAD  ItemStatus = 0
-	READ    ItemStatus = 1
-	STARRED ItemStatus = 2
+	UNREAD ItemStatus = 0
+	READ   ItemStatus = 1
+	// Status 2 used to mean "starred". The feature is gone; legacy rows
+	// still holding that value are treated as read.
 )
 
 var StatusRepresentations = map[ItemStatus]string{
-	UNREAD:  "unread",
-	READ:    "read",
-	STARRED: "starred",
+	UNREAD: "unread",
+	READ:   "read",
 }
 
 var StatusValues = map[string]ItemStatus{
-	"unread":  UNREAD,
-	"read":    READ,
-	"starred": STARRED,
+	"unread": UNREAD,
+	"read":   READ,
 }
 
 func (s ItemStatus) MarshalJSON() ([]byte, error) {
-	return json.Marshal(StatusRepresentations[s])
+	if s == UNREAD {
+		return json.Marshal(StatusRepresentations[UNREAD])
+	}
+	return json.Marshal(StatusRepresentations[READ])
 }
 
 func (s *ItemStatus) UnmarshalJSON(b []byte) error {
@@ -162,7 +164,7 @@ func (s *Storage) CreateItems(items []Item) bool {
 	return true
 }
 
-func listQueryPredicate(filter ItemFilter, newestFirst bool) (string, []interface{}) {
+func listQueryPredicate(filter ItemFilter) (string, []interface{}) {
 	cond := make([]string, 0)
 	args := make([]interface{}, 0)
 	if filter.FolderID != nil {
@@ -188,11 +190,9 @@ func listQueryPredicate(filter ItemFilter, newestFirst bool) (string, []interfac
 		args = append(args, strings.Join(terms, " "))
 	}
 	if filter.After != nil {
-		compare := ">"
-		if newestFirst {
-			compare = "<"
-		}
-		cond = append(cond, fmt.Sprintf("(i.date, i.id) %s (select date, id from items where id = ?)", compare))
+		// Keyset pagination — the comparator has to match the fixed
+		// newest-first ordering in ListItems.
+		cond = append(cond, "(i.date, i.id) < (select date, id from items where id = ?)")
 		args = append(args, *filter.After)
 	}
 	if filter.IDs != nil && len(*filter.IDs) > 0 {
@@ -227,7 +227,7 @@ func listQueryPredicate(filter ItemFilter, newestFirst bool) (string, []interfac
 }
 
 func (s *Storage) CountItems(filter ItemFilter) int {
-	predicate, args := listQueryPredicate(filter, false)
+	predicate, args := listQueryPredicate(filter)
 
 	var count int
 	query := fmt.Sprintf(`
@@ -243,14 +243,11 @@ func (s *Storage) CountItems(filter ItemFilter) int {
 	return count
 }
 
-func (s *Storage) ListItems(filter ItemFilter, limit int, newestFirst bool, withContent bool) []Item {
-	predicate, args := listQueryPredicate(filter, newestFirst)
+func (s *Storage) ListItems(filter ItemFilter, limit int, withContent bool) []Item {
+	predicate, args := listQueryPredicate(filter)
 	result := make([]Item, 0)
 
 	order := "date desc, id desc"
-	if !newestFirst {
-		order = "date asc, id asc"
-	}
 	if filter.IDs != nil || filter.SinceID != nil {
 		order = "i.id asc"
 	}
@@ -321,11 +318,11 @@ func (s *Storage) MarkItemsRead(filter MarkFilter) bool {
 		FolderID: filter.FolderID,
 		FeedID:   filter.FeedID,
 		Before:   filter.Before,
-	}, false)
+	})
 	query := fmt.Sprintf(`
 		update items as i set status = %d
-		where %s and i.status != %d
-		`, READ, predicate, STARRED)
+		where %s
+		`, READ, predicate)
 	_, err := s.db.Exec(query, args...)
 	if err != nil {
 		log.Print(err)
@@ -334,9 +331,8 @@ func (s *Storage) MarkItemsRead(filter MarkFilter) bool {
 }
 
 type FeedStat struct {
-	FeedId       int64 `json:"feed_id"`
-	UnreadCount  int64 `json:"unread"`
-	StarredCount int64 `json:"starred"`
+	FeedId      int64 `json:"feed_id"`
+	UnreadCount int64 `json:"unread"`
 }
 
 func (s *Storage) FeedStats() []FeedStat {
@@ -344,18 +340,17 @@ func (s *Storage) FeedStats() []FeedStat {
 	rows, err := s.db.Query(fmt.Sprintf(`
 		select
 			feed_id,
-			sum(case status when %d then 1 else 0 end),
 			sum(case status when %d then 1 else 0 end)
 		from items
 		group by feed_id
-	`, UNREAD, STARRED))
+	`, UNREAD))
 	if err != nil {
 		log.Print(err)
 		return result
 	}
 	for rows.Next() {
 		stat := FeedStat{}
-		rows.Scan(&stat.FeedId, &stat.UnreadCount, &stat.StarredCount)
+		rows.Scan(&stat.FeedId, &stat.UnreadCount)
 		result = append(result, stat)
 	}
 	return result

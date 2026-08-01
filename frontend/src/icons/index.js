@@ -27,8 +27,6 @@ import rotateUcw from '../assets/icons/rotate-cw.svg?raw'
 import rss from '../assets/icons/rss.svg?raw'
 import search from '../assets/icons/search.svg?raw'
 import sliders from '../assets/icons/sliders.svg?raw'
-import starUfull from '../assets/icons/star-full.svg?raw'
-import star from '../assets/icons/star.svg?raw'
 import trash from '../assets/icons/trash.svg?raw'
 import upload from '../assets/icons/upload.svg?raw'
 import x from '../assets/icons/x.svg?raw'
@@ -62,8 +60,6 @@ export const icons = {
   'rss': rss,
   'search': search,
   'sliders': sliders,
-  'star-full': starUfull,
-  'star': star,
   'trash': trash,
   'upload': upload,
   'x': x,

@@ -83,7 +83,6 @@ onUnmounted(() => {
           >
             <transition name="indicator">
               <Icon name="circle-full" class="icon-small mr-1" v-if="item.status == 'unread'" />
-              <Icon name="star-full" class="icon-small mr-1" v-else-if="item.status == 'starred'" />
             </transition>
             <small class="flex-fill text-truncate mr-1">
               {{ (feedsById[item.feed_id] || {}).title }}

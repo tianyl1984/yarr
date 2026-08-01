@@ -19,8 +19,8 @@ import Icon from '@/components/common/Icon.vue'
       <table class="table table-borderless table-sm table-compact m-0">
         <tbody>
           <tr>
-            <td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td>
-            <td>show unread / starred / all feeds</td>
+            <td><kbd>1</kbd> <kbd>2</kbd></td>
+            <td>show unread / all feeds</td>
           </tr>
           <tr><td><kbd>/</kbd></td><td>focus the search bar</td></tr>
 
@@ -32,7 +32,6 @@ import Icon from '@/components/common/Icon.vue'
           <tr><td colspan="2">&nbsp;</td></tr>
           <tr><td><kbd>R</kbd></td><td>mark all read</td></tr>
           <tr><td><kbd>r</kbd></td><td>mark read / unread</td></tr>
-          <tr><td><kbd>s</kbd></td><td>mark starred / unstarred</td></tr>
           <tr><td><kbd>o</kbd></td><td>open link</td></tr>
           <tr><td><kbd>i</kbd></td><td>read here</td></tr>
           <tr><td><kbd>f</kbd> <kbd>b</kbd></td><td>scroll content forward / backward</td></tr>

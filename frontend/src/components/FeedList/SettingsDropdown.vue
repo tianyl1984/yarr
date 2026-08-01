@@ -65,23 +65,6 @@ function compareOPML(event) {
 
     <div class="dropdown-divider"></div>
 
-    <header class="dropdown-header" role="heading" aria-level="2">Theme</header>
-    <div class="row text-center m-0">
-      <button
-        class="btn btn-link col-4 px-0 rounded-0"
-        :class="'theme-' + t"
-        :aria-label="t"
-        :aria-pressed="state.theme.name == t"
-        @click.stop="state.theme.name = t"
-        v-for="t in ['light', 'sepia', 'night']"
-        :key="t"
-      >
-        <Icon name="check" v-if="state.theme.name == t" />
-      </button>
-    </div>
-
-    <div class="dropdown-divider"></div>
-
     <header class="dropdown-header" role="heading" aria-level="2">
       Auto Refresh
     </header>
@@ -105,29 +88,6 @@ function compareOPML(event) {
       </button>
     </div>
 
-    <div class="dropdown-divider"></div>
-
-    <header class="dropdown-header" role="heading" aria-level="2">
-      Show first
-    </header>
-    <div class="d-flex text-center">
-      <button
-        class="dropdown-item px-0"
-        :aria-pressed="state.itemSortNewestFirst"
-        :class="{ active: state.itemSortNewestFirst }"
-        @click.stop="state.itemSortNewestFirst = true"
-      >
-        New
-      </button>
-      <button
-        class="dropdown-item px-0"
-        :aria-pressed="!state.itemSortNewestFirst"
-        :class="{ active: !state.itemSortNewestFirst }"
-        @click.stop="state.itemSortNewestFirst = false"
-      >
-        Old
-      </button>
-    </div>
     <div class="dropdown-divider"></div>
     <header class="dropdown-header" role="heading" aria-level="2">
       Subscriptions

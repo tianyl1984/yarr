@@ -60,7 +60,6 @@ func (s *Server) handler() http.Handler {
 
 func (s *Server) handleStatus(c *router.Context) {
 	c.JSON(http.StatusOK, map[string]interface{}{
-		"running":       s.worker.FeedsPending(),
 		"stats":         s.db.FeedStats(),
 		"authenticated": s.AuthURL != "",
 	})
@@ -333,15 +332,14 @@ func (s *Server) handleItemList(c *router.Context) {
 			filter.After = &after
 		}
 		if status := query.Get("status"); len(status) != 0 {
-			statusValue := storage.StatusValues[status]
-			filter.Status = &statusValue
+			if statusValue, ok := storage.StatusValues[status]; ok {
+				filter.Status = &statusValue
+			}
 		}
 		if search := query.Get("search"); len(search) != 0 {
 			filter.Search = &search
 		}
-		newestFirst := query.Get("oldest_first") != "true"
-
-		items := s.db.ListItems(filter, perPage+1, newestFirst, true)
+		items := s.db.ListItems(filter, perPage+1, true)
 		hasMore := false
 		if len(items) == perPage+1 {
 			hasMore = true

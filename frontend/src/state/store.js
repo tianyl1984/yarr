@@ -82,12 +82,6 @@ export const refreshRateOptions = [
   { title: '24h', value: 1440 },
 ]
 
-const themeColors = {
-  night: '#0e0e0e',
-  sepia: '#f4f0e5',
-  light: '#fff',
-}
-
 export const state = reactive({
   filterSelected: '',
   folders: [],
@@ -102,24 +96,18 @@ export const state = reactive({
   itemSelectedDetails: null,
   itemSelectedReadability: '',
   itemSearch: '',
-  itemSortNewestFirst: true,
   itemListWidth: 300,
-
-  filteredFeedStats: {},
-  filteredFolderStats: {},
-  filteredTotalStats: null,
 
   settings: '',
   loading: {
-    feeds: 0,
     newfeed: false,
     items: false,
     readability: false,
   },
   fonts: ['', 'serif', 'monospace'],
   feedStats: {},
+  // Article body typography (the colour theme feature was removed).
   theme: {
-    name: 'light',
     font: '',
     size: 1,
   },
@@ -133,12 +121,11 @@ export const state = reactive({
 // Hydrate reactive state from persisted settings + status (replaces Go template
 // injection of window.app.settings / window.app.authenticated).
 export function hydrate(s, status) {
-  state.filterSelected = s.filter
+  // 'starred' is a leftover from the removed feature; fall back to no filter.
+  state.filterSelected = s.filter === 'unread' ? 'unread' : ''
   state.feedSelected = s.feed
   state.feedListWidth = s.feed_list_width || 300
-  state.itemSortNewestFirst = s.sort_newest_first
   state.itemListWidth = s.item_list_width || 300
-  state.theme.name = s.theme_name
   state.theme.font = s.theme_font
   state.theme.size = s.theme_size
   state.refreshRate = s.refresh_rate
@@ -182,6 +169,34 @@ export const foldersById = computed(function () {
     acc[f.id] = f
     return acc
   }, {})
+})
+
+// Per-feed / per-folder / total counters for the active filter, shown in the
+// feed list. Computed rather than assigned so it recomputes whenever any of its
+// three inputs lands — feeds and stats come from separate requests and either
+// can arrive last on a slow connection.
+export const filteredStats = computed(function () {
+  const filter = state.filterSelected
+  if (!filter) return { feeds: {}, folders: {}, total: null }
+
+  const feeds = {},
+    folders = {}
+  let total = 0
+
+  for (let i = 0; i < state.feeds.length; i++) {
+    const feed = state.feeds[i]
+    if (!state.feedStats[feed.id]) continue
+
+    const n = state.feedStats[feed.id][filter] || 0
+
+    if (!folders[feed.folder_id]) folders[feed.folder_id] = 0
+
+    feeds[feed.id] = n
+    folders[feed.folder_id] += n
+    total += n
+  }
+
+  return { feeds, folders, total }
 })
 
 export const current = computed(function () {
@@ -232,13 +247,8 @@ export const refreshRateTitle = computed(function () {
 
 // ---- methods ----
 
-export function updateMetaTheme(theme) {
-  document.querySelector("meta[name='theme-color']").content = themeColors[theme]
-}
-
 export function refreshStats() {
   return api.status().then(function (data) {
-    state.loading.feeds = data.running
     state.feedStats = data.stats.reduce(function (acc, stat) {
       acc[stat.feed_id] = stat
       return acc
@@ -267,9 +277,6 @@ export function getItemsQuery() {
   }
   if (state.itemSearch) {
     query.search = state.itemSearch
-  }
-  if (!state.itemSortNewestFirst) {
-    query.oldest_first = true
   }
   return query
 }
@@ -483,7 +490,7 @@ export function toggleItemStatus(item, targetstatus, fallbackstatus) {
     item.status !== targetstatus ? targetstatus : fallbackstatus
 
   const updateStats = function (status, incr) {
-    if (status == 'unread' || status == 'starred') {
+    if (status == 'unread') {
       state.feedStats[item.feed_id][status] += incr
     }
   }
@@ -498,10 +505,6 @@ export function toggleItemStatus(item, targetstatus, fallbackstatus) {
     if (itemInList) itemInList.status = newstatus
     item.status = newstatus
   })
-}
-
-export function toggleItemStarred(item) {
-  toggleItemStatus(item, 'starred', 'read')
 }
 
 export function toggleItemRead(item) {
@@ -556,41 +559,10 @@ export function incrFont(x) {
 }
 
 export function fetchAllFeeds() {
-  if (state.loading.feeds) return
+  // Concurrent refreshes are rejected server-side (worker.RefreshFeeds).
   api.feeds.refresh().then(function () {
     refreshStats()
   })
-}
-
-export function computeStats() {
-  const filter = state.filterSelected
-  if (!filter) {
-    state.filteredFeedStats = {}
-    state.filteredFolderStats = {}
-    state.filteredTotalStats = null
-    return
-  }
-
-  const statsFeeds = {},
-    statsFolders = {}
-  let statsTotal = 0
-
-  for (let i = 0; i < state.feeds.length; i++) {
-    const feed = state.feeds[i]
-    if (!state.feedStats[feed.id]) continue
-
-    const n = state.feedStats[feed.id][filter] || 0
-
-    if (!statsFolders[feed.folder_id]) statsFolders[feed.folder_id] = 0
-
-    statsFeeds[feed.id] = n
-    statsFolders[feed.folder_id] += n
-    statsTotal += n
-  }
-
-  state.filteredFeedStats = statsFeeds
-  state.filteredFolderStats = statsFolders
-  state.filteredTotalStats = statsTotal
 }
 
 export function mustHideFolder() {
@@ -685,10 +657,7 @@ export function registerWatchers() {
   watch(
     () => state.theme,
     function (theme) {
-      updateMetaTheme(theme.name)
-      document.body.classList.value = 'theme-' + theme.name
       api.settings.update({
-        theme_name: theme.name,
         theme_font: theme.font,
         theme_size: theme.size,
       })
@@ -710,7 +679,6 @@ export function registerWatchers() {
         title += ' (' + unreadCount + ')'
       }
       document.title = title
-      computeStats()
     }, 500),
     { deep: true },
   )
@@ -722,7 +690,6 @@ export function registerWatchers() {
         .update({ filter: newVal })
         .then(() => refreshItems(false))
       state.itemSelected = null
-      computeStats()
     },
   )
 
@@ -770,15 +737,6 @@ export function registerWatchers() {
     debounce(function () {
       refreshItems()
     }, 500),
-  )
-
-  watch(
-    () => state.itemSortNewestFirst,
-    function (newVal) {
-      api.settings
-        .update({ sort_newest_first: newVal })
-        .then(() => refreshItems(false))
-    },
   )
 
   watch(

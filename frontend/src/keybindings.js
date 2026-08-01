@@ -41,11 +41,6 @@ const shortcutFunctions = {
       store.markItemsRead()
     }
   },
-  toggleItemStarred: function () {
-    if (store.state.itemSelected != null) {
-      store.toggleItemStarred(store.state.itemSelectedDetails)
-    }
-  },
   focusSearch: function () {
     document.getElementById('searchbar').focus()
   },
@@ -76,9 +71,6 @@ const shortcutFunctions = {
   showUnread() {
     store.state.filterSelected = 'unread'
   },
-  showStarred() {
-    store.state.filterSelected = 'starred'
-  },
   closeModal() {
     store.state.settings = null
   },
@@ -91,7 +83,6 @@ const keybindings = {
   i: shortcutFunctions.toggleReadability,
   r: shortcutFunctions.toggleItemRead,
   R: shortcutFunctions.markAllRead,
-  s: shortcutFunctions.toggleItemStarred,
   '/': shortcutFunctions.focusSearch,
   j: shortcutFunctions.nextItem,
   k: shortcutFunctions.previousItem,
@@ -101,8 +92,8 @@ const keybindings = {
   b: shortcutFunctions.scrollBackward,
   q: shortcutFunctions.closeItem,
   1: shortcutFunctions.showUnread,
-  2: shortcutFunctions.showStarred,
-  3: shortcutFunctions.showAll,
+  2: shortcutFunctions.showAll,
+  3: shortcutFunctions.showAll, // legacy binding, kept for muscle memory
 }
 
 const codebindings = {
@@ -111,7 +102,6 @@ const codebindings = {
   KeyI: shortcutFunctions.toggleReadability,
   //"r": shortcutFunctions.toggleItemRead,
   //"KeyR": shortcutFunctions.markAllRead,
-  KeyS: shortcutFunctions.toggleItemStarred,
   Slash: shortcutFunctions.focusSearch,
   KeyJ: shortcutFunctions.nextItem,
   KeyK: shortcutFunctions.previousItem,
@@ -121,8 +111,8 @@ const codebindings = {
   KeyB: shortcutFunctions.scrollBackward,
   KeyQ: shortcutFunctions.closeItem,
   Digit1: shortcutFunctions.showUnread,
-  Digit2: shortcutFunctions.showStarred,
-  Digit3: shortcutFunctions.showAll,
+  Digit2: shortcutFunctions.showAll,
+  Digit3: shortcutFunctions.showAll, // legacy binding, kept for muscle memory
   Escape: shortcutFunctions.closeModal,
 }
 

@@ -8,7 +8,6 @@ import {
   contentImages,
   contentAudios,
   contentVideos,
-  toggleItemStarred,
   toggleItemRead,
   toggleReadability,
   navigateToItem,
@@ -31,14 +30,6 @@ onUnmounted(() => {
 <template>
   <div id="col-item" class="vh-100 d-flex flex-column w-100" style="min-width: 0">
     <div class="toolbar px-2 d-flex align-items-center" v-if="state.itemSelectedDetails">
-      <button
-        class="toolbar-item"
-        @click="toggleItemStarred(state.itemSelectedDetails)"
-        title="Mark Starred"
-      >
-        <Icon name="star-full" v-if="state.itemSelectedDetails.status == 'starred'" />
-        <Icon name="star" v-else-if="state.itemSelectedDetails.status != 'starred'" />
-      </button>
       <button
         class="toolbar-item"
         title="Mark Unread"

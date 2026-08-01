@@ -26,10 +26,6 @@ func NewWorker(db *storage.Storage) *Worker {
 	return &Worker{db: db, htmlfeed: htmlfeed.NewHtmlFeed(), pending: &pending}
 }
 
-func (w *Worker) FeedsPending() int32 {
-	return *w.pending
-}
-
 func (w *Worker) FindFavicons() {
 	go func() {
 		for _, feed := range w.db.ListFeedsMissingIcons() {

@@ -5,7 +5,6 @@ import {
   state,
   hydrate,
   registerWatchers,
-  updateMetaTheme,
   refreshStats,
   refreshFeeds,
   refreshItems,
@@ -23,12 +22,6 @@ const ready = ref(false)
 onMounted(async () => {
   const [s, status] = await Promise.all([api.settings.get(), api.status()])
   hydrate(s, status)
-
-  // Apply theme immediately (the theme watcher, registered below, does not fire
-  // on initial hydrate — same as the Vue2 template setting <body class> + the
-  // created() call to updateMetaTheme).
-  document.body.classList.value = 'theme-' + state.theme.name
-  updateMetaTheme(state.theme.name)
 
   registerWatchers()
   registerKeybindings()

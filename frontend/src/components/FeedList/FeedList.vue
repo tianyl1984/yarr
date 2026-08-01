@@ -1,6 +1,7 @@
 <script setup>
 import {
   state,
+  filteredStats,
   foldersWithFeeds,
   toggleFolderExpanded,
   resizeFeedList,
@@ -33,15 +34,6 @@ import SettingsDropdown from './SettingsDropdown.vue'
       </button>
       <button
         class="toolbar-item mx-1"
-        :class="{ active: state.filterSelected == 'starred' }"
-        :aria-pressed="state.filterSelected == 'starred'"
-        title="Starred"
-        @click="state.filterSelected = 'starred'"
-      >
-        <Icon name="star-full" />
-      </button>
-      <button
-        class="toolbar-item mr-1"
         :class="{ active: state.filterSelected == '' }"
         :aria-pressed="state.filterSelected == ''"
         title="All"
@@ -61,9 +53,8 @@ import SettingsDropdown from './SettingsDropdown.vue'
         <div class="selectgroup-label d-flex align-items-center w-100">
           <Icon name="layers" class="mr-2" />
           <span class="flex-fill text-left text-truncate" v-if="state.filterSelected == 'unread'">All Unread</span>
-          <span class="flex-fill text-left text-truncate" v-if="state.filterSelected == 'starred'">All Starred</span>
           <span class="flex-fill text-left text-truncate" v-if="state.filterSelected == ''">All Feeds</span>
-          <span class="counter text-right">{{ state.filteredTotalStats }}</span>
+          <span class="counter text-right">{{ filteredStats.total }}</span>
         </div>
       </label>
       <div v-for="folder in foldersWithFeeds" :key="folder.id">
@@ -86,7 +77,7 @@ import SettingsDropdown from './SettingsDropdown.vue'
               @click.prevent="toggleFolderExpanded(folder)"
             />
             <span class="flex-fill text-left text-truncate">{{ folder.title }}</span>
-            <span class="counter text-right">{{ state.filteredFolderStats[folder.id] || '' }}</span>
+            <span class="counter text-right">{{ filteredStats.folders[folder.id] || '' }}</span>
           </div>
         </label>
         <div
@@ -105,7 +96,7 @@ import SettingsDropdown from './SettingsDropdown.vue'
               <Icon name="rss" class="mr-2" v-if="!feed.has_icon" />
               <span class="icon mr-2" v-else><img :src="'./api/feeds/' + feed.id + '/icon'" alt="" loading="lazy" /></span>
               <span class="flex-fill text-left text-truncate">{{ feed.title }}</span>
-              <span class="counter text-right">{{ state.filteredFeedStats[feed.id] || '' }}</span>
+              <span class="counter text-right">{{ filteredStats.feeds[feed.id] || '' }}</span>
               <Icon
                 name="alert-circle"
                 class="flex-shrink-0 mx-2"
@@ -116,13 +107,6 @@ import SettingsDropdown from './SettingsDropdown.vue'
           </label>
         </div>
       </div>
-    </div>
-    <div
-      class="p-2 toolbar d-flex align-items-center border-top flex-shrink-0"
-      v-if="state.loading.feeds"
-    >
-      <span class="icon loading mx-2"></span>
-      <span class="text-truncate cursor-default noselect">Refreshing ({{ state.loading.feeds }} left)</span>
     </div>
   </div>
 </template>
