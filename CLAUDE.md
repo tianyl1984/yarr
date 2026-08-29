@@ -35,7 +35,7 @@ Backend (from `backend/`):
 - Build the server binary: `go build -o out/yarr ./cmd/yarr`
 - Run directly: `go run ./cmd/yarr -db "$YARR_DB"` (requires a reachable MySQL instance; see Configuration). Serves the JSON API on `YARR_ADDR` (default `127.0.0.1:7070`); it no longer serves any frontend assets.
 - There are no `*_test.go` files in this repo currently — `go test ./...` will report "no test files" everywhere.
-- Small standalone debugging utilities live under `backend/cmd/` and can be run directly, e.g. `go run ./cmd/feed2json <url|filepath>`, `go run ./cmd/readability <url>`, `go run ./cmd/htmlfeed` (hardcoded scraping test).
+- `backend/cmd/` contains exactly one binary, `cmd/yarr` (the upstream `feed2json` / `readability` / `htmlfeed` debugging utilities have been deleted).
 
 Frontend (from `frontend/`):
 
@@ -55,11 +55,17 @@ Runtime config is via CLI flags or environment variables (see `flag` definitions
 `deploy/.env.example`):
 
 - `YARR_DB` — MySQL DSN, e.g. `user:pass@tcp(127.0.0.1:3306)/yarr?charset=utf8mb4&parseTime=true&multiStatements=true`. Required; the process fatals on startup if unset.
-- `YARR_ADDR` — listen address (default `127.0.0.1:7070`); `unix:<path>` is supported for a Unix socket.
-- `YARR_PROXY` — outbound proxy for feed fetching.
-- `YARR_BROWSERLESS` — browserless endpoint (used for JS-rendered page scraping).
+- `YARR_ADDR` — listen address, TCP only (default `127.0.0.1:7070`).
 - `YARR_AUTH_URL` / `YARR_AUTH_SECRET` — enable cf-worker-auth SSO login (see Auth below); if `YARR_AUTH_URL` is unset, the whole app is unauthenticated.
-- `YARR_LOGFILE` — path to a log file to use instead of stdout.
+
+Those four (`-db`, `-addr`, `-auth-url`, `-auth-secret`) are the only flags. Two more
+settings are environment-only, read directly where they're used rather than in `main.go`:
+
+- `YARR_PROXY` (`src/httpclient/httpclient.go`) — outbound proxy. Not global: it only applies to feeds / `feed_config` rows with `use_proxy` enabled.
+- `YARR_BROWSERLESS` (`src/htmlfeed/htmlfeed.go`) — browserless endpoint for JS-rendered page scraping; if unset, that code path is skipped silently.
+
+`TZ` (set to `Asia/Shanghai` by default in `deploy/docker-compose.yml`) matters too — it
+decides when the daily 04:00 feed refresh actually fires. Logging always goes to stdout.
 
 (The backend serves plain HTTP only and at the root path — TLS termination and any
 subpath routing are handled by the nginx frontend / reverse proxy, not the Go server.)
@@ -91,8 +97,11 @@ decoded via the form structs in `src/server/forms.go`.
 Background feed refreshing is owned by `src/worker/worker.go`: a fixed pool of 4
 goroutines pulls feeds off a channel, fetches/parses them (`src/worker/crawler.go`), and
 writes new items back through `storage`. `Server.Start()` kicks off an initial favicon
-sweep and, if `refresh_rate` (a DB setting) is nonzero, starts a ticker-driven
-auto-refresh loop (`worker.SetRefreshRate`).
+sweep and starts `worker.StartDailyRefresh(dailyRefreshHour)` — a timer loop that
+refreshes every feed once a day at 04:00 **local time** (`dailyRefreshHour` in
+`src/server/server.go`). There is deliberately no refresh on startup and no
+user-configurable interval; the old `refresh_rate` setting and its "Auto Refresh" UI
+have been removed. Manual refresh is still available from the frontend.
 
 ### Feed parsing pipeline
 

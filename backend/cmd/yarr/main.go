@@ -13,9 +13,6 @@ import (
 	"github.com/nkanaev/yarr/src/storage"
 )
 
-var Version string = "0.0"
-var GitHash string = "unknown"
-
 var OptList = make([]string, 0)
 
 func opt(envVar, defaultValue string) string {
@@ -37,8 +34,7 @@ func randomSecret() string {
 
 func main() {
 
-	var addr, db, logfile, authurl, authsecret string
-	var ver bool
+	var addr, db, authurl, authsecret string
 
 	flag.CommandLine.SetOutput(os.Stdout)
 
@@ -48,32 +44,20 @@ func main() {
 		flag.PrintDefaults()
 		fmt.Fprintln(out, "\nThe environmental variables, if present, will be used to provide\nthe default values for the params above:")
 		fmt.Fprintln(out, " ", strings.Join(OptList, ", "))
+		fmt.Fprintln(out, "\nEnvironment-only settings (no flag):")
+		fmt.Fprintln(out, "  YARR_PROXY\n\toutbound proxy, applied only to feeds with use_proxy enabled")
+		fmt.Fprintln(out, "  YARR_BROWSERLESS\n\tbrowserless endpoint for scraping JS-rendered pages")
+		fmt.Fprintln(out, "  TZ\n\ttime zone deciding when the daily 04:00 feed refresh fires")
 	}
 
 	flag.StringVar(&addr, "addr", opt("YARR_ADDR", "127.0.0.1:7070"), "address to run server on")
 	flag.StringVar(&authurl, "auth-url", opt("YARR_AUTH_URL", ""), "base `url` of the cf-worker-auth SSO service (enables login when set)")
 	flag.StringVar(&authsecret, "auth-secret", opt("YARR_AUTH_SECRET", ""), "secret used to sign session cookies (random per start if unset)")
 	flag.StringVar(&db, "db", opt("YARR_DB", ""), "mysql connection string")
-	flag.StringVar(&logfile, "log-file", opt("YARR_LOGFILE", ""), "`path` to log file to use instead of stdout")
-	flag.BoolVar(&ver, "version", false, "print application version")
 	flag.Parse()
 
-	if ver {
-		fmt.Printf("v%s (%s)\n", Version, GitHash)
-		return
-	}
-
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-	if logfile != "" {
-		file, err := os.OpenFile(logfile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
-		if err != nil {
-			log.Fatal("Failed to setup log file: ", err)
-		}
-		defer file.Close()
-		log.SetOutput(file)
-	} else {
-		log.SetOutput(os.Stdout)
-	}
+	log.SetOutput(os.Stdout)
 
 	if db == "" {
 		log.Fatal("Failed to get db config")

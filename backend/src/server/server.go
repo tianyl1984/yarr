@@ -4,8 +4,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
-	"strings"
 	"sync"
 
 	"github.com/nkanaev/yarr/src/htmlfeed"
@@ -50,19 +48,7 @@ func (s *Server) Start() {
 	// Feeds are refreshed once a day at 04:00 local time; no refresh on startup.
 	s.worker.StartDailyRefresh(dailyRefreshHour)
 
-	var ln net.Listener
-	var err error
-
-	if path, isUnix := strings.CutPrefix(s.Addr, "unix:"); isUnix {
-		err = os.Remove(path)
-		if err != nil {
-			log.Print(err)
-		}
-		ln, err = net.Listen("unix", path)
-	} else {
-		ln, err = net.Listen("tcp", s.Addr)
-	}
-
+	ln, err := net.Listen("tcp", s.Addr)
 	if err != nil {
 		log.Fatal(err)
 	}
