@@ -3,11 +3,8 @@ import { ref } from 'vue'
 import { api } from '@/api/api.js'
 import {
   state,
-  refreshRateTitle,
-  refreshRateOptions,
   showSettings,
   fetchAllFeeds,
-  changeRefreshRate,
   refreshFeeds,
   refreshStats,
   logout,
@@ -62,31 +59,6 @@ function compareOPML(event) {
       <Icon name="rotate-cw" class="mr-1" />
       Refresh Feeds
     </button>
-
-    <div class="dropdown-divider"></div>
-
-    <header class="dropdown-header" role="heading" aria-level="2">
-      Auto Refresh
-    </header>
-    <div class="row text-center m-0">
-      <button
-        class="dropdown-item col-4 px-0"
-        @click.stop="changeRefreshRate(-1)"
-        :disabled="!state.refreshRate"
-      >
-        <Icon name="chevron-down" />
-      </button>
-      <div class="col-4 d-flex align-items-center justify-content-center">
-        {{ refreshRateTitle }}
-      </div>
-      <button
-        class="dropdown-item col-4 px-0"
-        @click.stop="changeRefreshRate(1)"
-        :disabled="state.refreshRate === refreshRateOptions.at(-1).value"
-      >
-        <Icon name="chevron-up" />
-      </button>
-    </div>
 
     <div class="dropdown-divider"></div>
     <header class="dropdown-header" role="heading" aria-level="2">

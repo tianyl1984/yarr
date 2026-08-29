@@ -71,17 +71,6 @@ export const refs = {
   content: null,
 }
 
-export const refreshRateOptions = [
-  { title: '0', value: 0 },
-  { title: '10m', value: 10 },
-  { title: '30m', value: 30 },
-  { title: '1h', value: 60 },
-  { title: '2h', value: 120 },
-  { title: '4h', value: 240 },
-  { title: '12h', value: 720 },
-  { title: '24h', value: 1440 },
-]
-
 export const state = reactive({
   filterSelected: '',
   folders: [],
@@ -111,7 +100,6 @@ export const state = reactive({
     font: '',
     size: 1,
   },
-  refreshRate: 0,
   authenticated: false,
   feed_errors: {},
 
@@ -128,7 +116,6 @@ export function hydrate(s, status) {
   state.itemListWidth = s.item_list_width || 300
   state.theme.font = s.theme_font
   state.theme.size = s.theme_size
-  state.refreshRate = s.refresh_rate
   state.authenticated = status.authenticated
 }
 
@@ -238,11 +225,6 @@ export const contentVideos = computed(function () {
   return (state.itemSelectedDetails.media_links || []).filter(
     (l) => l.type === 'video',
   )
-})
-
-export const refreshRateTitle = computed(function () {
-  const entry = refreshRateOptions.find((o) => o.value === state.refreshRate)
-  return entry ? entry.title : '0'
 })
 
 // ---- methods ----
@@ -640,15 +622,6 @@ export function navigateToFeed(relativePosition) {
   })
 }
 
-export function changeRefreshRate(offset) {
-  const curIdx = refreshRateOptions.findIndex(
-    (o) => o.value === state.refreshRate,
-  )
-  if (curIdx <= 0 && offset < 0) return
-  if (curIdx >= refreshRateOptions.length - 1 && offset > 0) return
-  state.refreshRate = refreshRateOptions[curIdx + offset].value
-}
-
 // ---- watchers ----
 // Registered once at startup (after hydrate) so initial-setup guards behave
 // like the Vue2 `oldVal === undefined` checks.
@@ -751,12 +724,5 @@ export function registerWatchers() {
     debounce(function (newVal) {
       api.settings.update({ item_list_width: newVal })
     }, 1000),
-  )
-
-  watch(
-    () => state.refreshRate,
-    function (newVal) {
-      api.settings.update({ refresh_rate: newVal })
-    },
   )
 }

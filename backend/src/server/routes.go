@@ -383,9 +383,6 @@ func (s *Server) handleSettings(c *router.Context) {
 			return
 		}
 		if s.db.UpdateSettings(settings) {
-			if _, ok := settings["refresh_rate"]; ok {
-				s.worker.SetRefreshRate(s.db.GetSettingsValueInt64("refresh_rate"))
-			}
 			c.Out.WriteHeader(http.StatusOK)
 		} else {
 			c.Out.WriteHeader(http.StatusBadRequest)

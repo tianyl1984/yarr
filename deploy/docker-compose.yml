@@ -12,6 +12,9 @@ services:
     image: yarr-backend:latest
     restart: unless-stopped
     env_file: *env_file
+    environment:
+      # 每日 4 点自动刷新订阅按此时区计算
+      TZ: ${TZ:-Asia/Shanghai}
 
   yarr-frontend:
     build:
@@ -22,5 +25,7 @@ services:
     ports:
       - "7070:80"
     restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
     depends_on:
       - yarr-backend

@@ -16,7 +16,6 @@ type Worker struct {
 	db       *storage.Storage
 	htmlfeed *htmlfeed.HtmlFeed
 	pending  *int32
-	refresh  *time.Ticker
 	reflock  sync.Mutex
 	stopper  chan bool
 }
@@ -44,34 +43,42 @@ func (w *Worker) FindFeedFavicon(feed storage.Feed) {
 	}
 }
 
-func (w *Worker) SetRefreshRate(minute int64) {
+// StartDailyRefresh schedules a feed refresh every day at the given local hour
+// (e.g. hour=4 -> 04:00). Calling it again replaces the previous schedule.
+func (w *Worker) StartDailyRefresh(hour int) {
 	if w.stopper != nil {
-		w.refresh.Stop()
-		w.refresh = nil
-		w.stopper <- true
+		close(w.stopper)
 		w.stopper = nil
 	}
 
-	if minute == 0 {
-		return
-	}
+	stop := make(chan bool)
+	w.stopper = stop
 
-	w.stopper = make(chan bool)
-	w.refresh = time.NewTicker(time.Minute * time.Duration(minute))
-
-	go func(fire <-chan time.Time, stop <-chan bool, m int64) {
-		log.Printf("auto-refresh %dm: starting", m)
+	go func() {
+		log.Printf("auto-refresh: scheduled daily at %02d:00", hour)
 		for {
+			wait := time.Until(nextDailyRun(time.Now(), hour))
+			timer := time.NewTimer(wait)
 			select {
-			case <-fire:
-				log.Printf("auto-refresh %dm: firing", m)
+			case <-timer.C:
+				log.Printf("auto-refresh: firing (daily %02d:00)", hour)
 				w.RefreshFeeds()
 			case <-stop:
-				log.Printf("auto-refresh %dm: stopping", m)
+				timer.Stop()
+				log.Print("auto-refresh: stopping")
 				return
 			}
 		}
-	}(w.refresh.C, w.stopper, minute)
+	}()
+}
+
+// nextDailyRun returns the next occurrence of hour:00 local time after now.
+func nextDailyRun(now time.Time, hour int) time.Time {
+	next := time.Date(now.Year(), now.Month(), now.Day(), hour, 0, 0, 0, now.Location())
+	if !next.After(now) {
+		next = next.AddDate(0, 0, 1)
+	}
+	return next
 }
 
 func (w *Worker) RefreshFeeds() {

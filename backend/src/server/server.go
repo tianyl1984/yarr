@@ -13,6 +13,9 @@ import (
 	"github.com/nkanaev/yarr/src/worker"
 )
 
+// dailyRefreshHour is the local hour at which all feeds are auto-refreshed.
+const dailyRefreshHour = 4
+
 type Server struct {
 	Addr        string
 	db          *storage.Storage
@@ -42,13 +45,10 @@ func (h *Server) GetAddr() string {
 }
 
 func (s *Server) Start() {
-	refreshRate := s.db.GetSettingsValueInt64("refresh_rate")
 	s.worker.FindFavicons()
 	// s.worker.StartFeedCleaner()
-	s.worker.SetRefreshRate(refreshRate)
-	if refreshRate > 0 {
-		s.worker.RefreshFeeds()
-	}
+	// Feeds are refreshed once a day at 04:00 local time; no refresh on startup.
+	s.worker.StartDailyRefresh(dailyRefreshHour)
 
 	var ln net.Listener
 	var err error

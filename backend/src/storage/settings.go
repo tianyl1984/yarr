@@ -7,13 +7,12 @@ import (
 
 func settingsDefaults() map[string]interface{} {
 	return map[string]interface{}{
-		"filter":            "",
-		"feed":              "",
-		"feed_list_width":   300,
-		"item_list_width":   300,
-		"theme_font":        "",
-		"theme_size":        1,
-		"refresh_rate":      0,
+		"filter":          "",
+		"feed":            "",
+		"feed_list_width": 300,
+		"item_list_width": 300,
+		"theme_font":      "",
+		"theme_size":      1,
 	}
 }
 
