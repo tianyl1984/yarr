@@ -11,6 +11,7 @@ var migrations = []func(*sql.Tx) error{
 	m01_initial,
 	m02_feedconfig,
 	m03_drop_http_states,
+	m04_feed_states,
 }
 
 var maxVersion = int64(len(migrations))
@@ -92,6 +93,9 @@ var m02_feedconfig_sql string
 //go:embed sql/m03_drop_http_states.sql
 var m03_drop_http_states_sql string
 
+//go:embed sql/m04_feed_states.sql
+var m04_feed_states_sql string
+
 func m01_initial(tx *sql.Tx) error {
 	fmt.Println(m01_initial_sql)
 	_, err := tx.Exec(m01_initial_sql)
@@ -107,5 +111,11 @@ func m02_feedconfig(tx *sql.Tx) error {
 func m03_drop_http_states(tx *sql.Tx) error {
 	fmt.Println(m03_drop_http_states_sql)
 	_, err := tx.Exec(m03_drop_http_states_sql)
+	return err
+}
+
+func m04_feed_states(tx *sql.Tx) error {
+	fmt.Println(m04_feed_states_sql)
+	_, err := tx.Exec(m04_feed_states_sql)
 	return err
 }

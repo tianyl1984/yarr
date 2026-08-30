@@ -1,6 +1,7 @@
 <script setup>
 import {
   state,
+  feedErrors,
   filteredStats,
   foldersWithFeeds,
   toggleFolderExpanded,
@@ -100,8 +101,8 @@ import SettingsDropdown from './SettingsDropdown.vue'
               <Icon
                 name="alert-circle"
                 class="flex-shrink-0 mx-2"
-                :title="state.feed_errors[feed.id]"
-                v-if="!state.filterSelected && state.feed_errors[feed.id]"
+                :title="feedErrors[feed.id]"
+                v-if="!state.filterSelected && feedErrors[feed.id]"
               />
             </div>
           </label>

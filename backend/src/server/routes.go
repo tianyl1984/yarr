@@ -41,7 +41,7 @@ func (s *Server) handler() http.Handler {
 	r.For("/api/folders/:id", s.handleFolder)
 	r.For("/api/feeds", s.handleFeedList)
 	r.For("/api/feeds/refresh", s.handleFeedRefresh)
-	r.For("/api/feeds/errors", s.handleFeedErrors)
+	r.For("/api/feeds/states", s.handleFeedStates)
 	r.For("/api/feeds/:id/icon", s.handleFeedIcon)
 	r.For("/api/feeds/:id", s.handleFeed)
 	r.For("/api/items", s.handleItemList)
@@ -124,9 +124,8 @@ func (s *Server) handleFeedRefresh(c *router.Context) {
 	}
 }
 
-func (s *Server) handleFeedErrors(c *router.Context) {
-	errors := s.db.GetFeedErrors()
-	c.JSON(http.StatusOK, errors)
+func (s *Server) handleFeedStates(c *router.Context) {
+	c.JSON(http.StatusOK, s.db.ListFeedStates())
 }
 
 type feedicon struct {
@@ -212,8 +211,8 @@ func (s *Server) handleFeedList(c *router.Context) {
 			items := worker.ConvertItems(result.Feed.Items, *feed)
 			if len(items) > 0 {
 				s.db.CreateItems(items)
-				s.db.SetFeedSize(feed.Id, len(items))
 			}
+			s.db.SetFeedState(feed.Id, len(items), nil)
 			s.worker.FindFeedFavicon(*feed)
 
 			c.JSON(http.StatusOK, map[string]interface{}{

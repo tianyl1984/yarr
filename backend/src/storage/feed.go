@@ -3,6 +3,7 @@ package storage
 import (
 	"database/sql"
 	"log"
+	"time"
 )
 
 type Feed struct {
@@ -51,6 +52,9 @@ func (s *Storage) DeleteFeed(feedId int64) bool {
 	if err != nil {
 		log.Print(err)
 		return false
+	}
+	if _, err := s.db.Exec(`delete from feed_states where feed_id = ?`, feedId); err != nil {
+		log.Print(err)
 	}
 	nrows, err := result.RowsAffected()
 	if err != nil {
@@ -167,52 +171,71 @@ func (s *Storage) GetFeed(id int64) *Feed {
 	return &f
 }
 
-func (s *Storage) ResetFeedErrors() {
-	if _, err := s.db.Exec(`delete from feed_errors`); err != nil {
-		log.Print(err)
-	}
+// FeedState is the outcome of the last refresh attempt for a feed. There is at
+// most one row per feed (unique key on feed_id); LastSuccess / ItemCount keep
+// the values from the last *successful* refresh even when the latest attempt
+// failed, and Error is nil whenever the latest attempt succeeded.
+type FeedState struct {
+	FeedId        int64      `json:"feed_id"`
+	LastRefreshed *time.Time `json:"last_refreshed"`
+	LastSuccess   *time.Time `json:"last_success"`
+	ItemCount     *int       `json:"item_count"`
+	Error         *string    `json:"error"`
 }
 
-func (s *Storage) SetFeedError(feedID int64, lastError error) {
+// SetFeedState records the outcome of a refresh attempt. On success pass
+// itemCount and a nil error; on failure pass the error — last_success and
+// item_count are then left at their previous values.
+func (s *Storage) SetFeedState(feedId int64, itemCount int, refreshErr error) {
+	now := time.Now()
+
+	var lastSuccess *time.Time
+	var count *int
+	var errMsg *string
+
+	if refreshErr != nil {
+		msg := refreshErr.Error()
+		errMsg = &msg
+	} else {
+		lastSuccess = &now
+		count = &itemCount
+	}
+
 	_, err := s.db.Exec(`
-		insert into feed_errors (feed_id, error)
-		values (?, ?)
-		on duplicate key update error = ?`,
-		feedID, lastError.Error(), lastError.Error(),
+		insert into feed_states (feed_id, last_refreshed, last_success, item_count, error)
+		values (?, ?, ?, ?, ?)
+		on duplicate key update
+			last_refreshed = values(last_refreshed),
+			last_success = ifnull(values(last_success), last_success),
+			item_count = ifnull(values(item_count), item_count),
+			error = values(error)`,
+		feedId, now, lastSuccess, count, errMsg,
 	)
 	if err != nil {
 		log.Print(err)
 	}
 }
 
-func (s *Storage) GetFeedErrors() map[int64]string {
-	errors := make(map[int64]string)
+func (s *Storage) ListFeedStates() []FeedState {
+	result := make([]FeedState, 0)
 
-	rows, err := s.db.Query(`select feed_id, error from feed_errors`)
+	rows, err := s.db.Query(`
+		select feed_id, last_refreshed, last_success, item_count, error
+		from feed_states
+	`)
 	if err != nil {
 		log.Print(err)
-		return errors
+		return result
 	}
+	defer rows.Close()
 
 	for rows.Next() {
-		var id int64
-		var error string
-		if err = rows.Scan(&id, &error); err != nil {
+		var st FeedState
+		if err = rows.Scan(&st.FeedId, &st.LastRefreshed, &st.LastSuccess, &st.ItemCount, &st.Error); err != nil {
 			log.Print(err)
+			return result
 		}
-		errors[id] = error
+		result = append(result, st)
 	}
-	return errors
-}
-
-func (s *Storage) SetFeedSize(feedId int64, size int) {
-	_, err := s.db.Exec(`
-		insert into feed_sizes (feed_id, size)
-		values (?, ?)
-		on duplicate key update size = ?`,
-		feedId, size, size,
-	)
-	if err != nil {
-		log.Print(err)
-	}
+	return result
 }

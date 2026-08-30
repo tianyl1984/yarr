@@ -75,8 +75,8 @@ export const api = {
     refresh: function () {
       return request('post', './api/feeds/refresh')
     },
-    list_errors: function () {
-      return request('get', './api/feeds/errors').then(json)
+    list_states: function () {
+      return request('get', './api/feeds/states').then(json)
     },
   },
   folders: {

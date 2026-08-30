@@ -102,8 +102,6 @@ func (w *Worker) RefreshFeeds() {
 }
 
 func (w *Worker) refresher(feeds []storage.Feed) {
-	w.db.ResetFeedErrors()
-
 	srcqueue := make(chan storage.Feed, len(feeds))
 	dstqueue := make(chan []storage.Item)
 
@@ -118,7 +116,6 @@ func (w *Worker) refresher(feeds []storage.Feed) {
 		items := <-dstqueue
 		if len(items) > 0 {
 			w.db.CreateItems(items)
-			w.db.SetFeedSize(items[0].FeedId, len(items))
 		}
 		atomic.AddInt32(w.pending, -1)
 	}
@@ -131,8 +128,8 @@ func (w *Worker) refresher(feeds []storage.Feed) {
 func (w *Worker) worker(srcqueue <-chan storage.Feed, dstqueue chan<- []storage.Item) {
 	for feed := range srcqueue {
 		items, err := listItems(feed, w.db, w.htmlfeed)
+		w.db.SetFeedState(feed.Id, len(items), err)
 		if err != nil {
-			w.db.SetFeedError(feed.Id, err)
 			log.Println("同步失败,feed_id:", feed.Id, ",err:", err)
 		} else {
 			if len(items) == 0 {

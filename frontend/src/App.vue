@@ -16,6 +16,7 @@ import ItemPane from '@/components/ItemPane/ItemPane.vue'
 import NewFeedModal from '@/components/modals/NewFeedModal.vue'
 import ShortcutsModal from '@/components/modals/ShortcutsModal.vue'
 import CompareOpmlModal from '@/components/modals/CompareOpmlModal.vue'
+import FeedStatesModal from '@/components/modals/FeedStatesModal.vue'
 
 const ready = ref(false)
 
@@ -27,12 +28,10 @@ onMounted(async () => {
   registerKeybindings()
   ready.value = true
 
+  // refreshStats() also pulls the per-feed refresh states.
   refreshStats()
     .then(refreshFeeds)
     .then(() => refreshItems(false))
-  api.feeds.list_errors().then(function (errors) {
-    state.feed_errors = errors
-  })
 })
 </script>
 
@@ -53,5 +52,6 @@ onMounted(async () => {
     <NewFeedModal />
     <ShortcutsModal />
     <CompareOpmlModal />
+    <FeedStatesModal />
   </div>
 </template>

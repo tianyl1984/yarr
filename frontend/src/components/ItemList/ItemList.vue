@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import {
   state,
   current,
+  feedErrors,
   feedsById,
   refs,
   loadMoreItems,
@@ -98,9 +99,9 @@ onUnmounted(() => {
     </div>
     <div
       class="px-3 py-2 border-top text-danger text-break"
-      v-if="state.feed_errors[current.feed.id]"
+      v-if="feedErrors[current.feed.id]"
     >
-      {{ state.feed_errors[current.feed.id] }}
+      {{ feedErrors[current.feed.id] }}
     </div>
   </div>
 </template>

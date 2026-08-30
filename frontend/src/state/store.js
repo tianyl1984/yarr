@@ -101,7 +101,9 @@ export const state = reactive({
     size: 1,
   },
   authenticated: false,
-  feed_errors: {},
+  // feed_id -> {last_refreshed, last_success, item_count, error}; feeds that
+  // have never been refreshed have no entry at all.
+  feed_states: {},
 
   opmlCompareResult: [],
 })
@@ -142,6 +144,16 @@ export const foldersWithFeeds = computed(function () {
   })
   folders.push({ id: null, feeds: feedsByFolders[null] || [] })
   return folders
+})
+
+// Only the feeds whose last refresh failed, as feed_id -> error message.
+export const feedErrors = computed(function () {
+  const errors = {}
+  for (const id in state.feed_states) {
+    const err = state.feed_states[id].error
+    if (err) errors[id] = err
+  }
+  return errors
 })
 
 export const feedsById = computed(function () {
@@ -236,9 +248,16 @@ export function refreshStats() {
       return acc
     }, {})
 
-    api.feeds.list_errors().then(function (errors) {
-      state.feed_errors = errors
-    })
+    refreshFeedStates()
+  })
+}
+
+export function refreshFeedStates() {
+  return api.feeds.list_states().then(function (states) {
+    state.feed_states = states.reduce(function (acc, st) {
+      acc[st.feed_id] = st
+      return acc
+    }, {})
   })
 }
 

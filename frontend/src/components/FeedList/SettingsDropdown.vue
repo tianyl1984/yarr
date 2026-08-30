@@ -7,6 +7,7 @@ import {
   fetchAllFeeds,
   refreshFeeds,
   refreshStats,
+  refreshFeedStates,
   logout,
 } from '@/state/store.js'
 import Dropdown from '@/components/common/Dropdown.vue'
@@ -15,6 +16,12 @@ import Icon from '@/components/common/Icon.vue'
 const menuDropdown = ref(null)
 const importForm = ref(null)
 const compareForm = ref(null)
+
+function showFeedStates() {
+  menuDropdown.value.hide()
+  refreshFeedStates()
+  state.settings = 'feed-states'
+}
 
 function importOPML(event) {
   const input = event.target
@@ -58,6 +65,10 @@ function compareOPML(event) {
     <button class="dropdown-item" @click="fetchAllFeeds()">
       <Icon name="rotate-cw" class="mr-1" />
       Refresh Feeds
+    </button>
+    <button class="dropdown-item" @click="showFeedStates()">
+      <Icon name="alert-circle" class="mr-1" />
+      抓取结果
     </button>
 
     <div class="dropdown-divider"></div>
