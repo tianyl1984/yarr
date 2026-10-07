@@ -134,6 +134,12 @@ onUnmounted(() => {
             >
               {{ (feedsById[state.itemSelectedDetails.feed_id] || {}).title }}
             </span>
+            <a
+              class="ml-2"
+              :href="'https://chatgpt.com/?q=' + encodeURIComponent(state.itemSelectedDetails.link + ' 讲解一下这篇文章')"
+              rel="noopener noreferrer"
+              target="_blank"
+            >Ask ChatGPT</a>
           </div>
           <time>{{ formatDate(state.itemSelectedDetails.date) }}</time>
         </div>
