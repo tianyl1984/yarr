@@ -79,6 +79,8 @@ export const state = reactive({
   feedListWidth: 300,
   feedNewChoice: [],
   feedNewChoiceSelected: '',
+  feedNewUrl: '',
+  feedCreateReturn: '',
   items: [],
   itemsHasMore: true,
   itemSelected: null,
@@ -473,7 +475,7 @@ export function createFeed(event) {
     if (result.status === 'success') {
       refreshFeeds()
       refreshStats()
-      state.settings = ''
+      closeCreateFeed()
       state.feedSelected = 'feed:' + result.feed.id
     } else if (result.status === 'multiple') {
       state.feedNewChoice = result.choice
@@ -534,12 +536,19 @@ export function toggleReadability() {
   }
 }
 
-export function showSettings(settings) {
+export function showSettings(settings, feedUrl = '') {
   state.settings = settings
   if (settings === 'create') {
+    state.feedNewUrl = feedUrl
+    state.feedCreateReturn = ''
     state.feedNewChoice = []
     state.feedNewChoiceSelected = ''
   }
+}
+
+export function closeCreateFeed() {
+  state.settings = state.feedCreateReturn
+  state.feedCreateReturn = ''
 }
 
 export function resizeFeedList(width) {

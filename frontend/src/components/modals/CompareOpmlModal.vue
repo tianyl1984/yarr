@@ -1,8 +1,19 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
+import { opml, compareOPML, addComparedFeed } from '@/state/opml.js'
 import { state } from '@/state/store.js'
 import Modal from '@/components/common/Modal.vue'
 import Icon from '@/components/common/Icon.vue'
+
+watch(() => state.settings, (value, previous) => {
+  if (value === 'compare-opml' && previous === 'create') compareOPML()
+})
+
+async function selectFile(event) {
+  const file = event.target.files[0]
+  event.target.value = ''
+  if (file) await compareOPML(file)
+}
 
 const missingSubscriptions = computed(() =>
   (state.opmlCompareResult || []).filter((result) => result.tip === '不存在')
@@ -51,7 +62,7 @@ function exportMissingSubscriptions() {
 </script>
 
 <template>
-  <Modal :open="state.settings == 'compare-opml'" @hide="state.settings = ''">
+  <Modal class="compare-opml-modal" :open="state.settings == 'compare-opml'" @hide="state.settings = ''">
     <button
       class="btn btn-link outline-none float-right p-2 mr-n2 mt-n2"
       style="line-height: 1"
@@ -61,6 +72,17 @@ function exportMissingSubscriptions() {
     </button>
     <div>
       <p class="cursor-default"><b>Compare OPML</b></p>
+      <div class="mb-3">
+        <label for="compare-opml-file">选择 OPML 文件</label>
+        <input id="compare-opml-file" type="file" accept=".opml,.xml" class="d-block" :disabled="opml.loading" @change="selectFile" />
+        <p v-if="opml.file" class="mt-2 mb-2">当前文件：{{ opml.file.name }}</p>
+        <p v-if="opml.error" class="text-danger mt-2" role="alert">{{ opml.error }}</p>
+        <p v-if="opml.storageError" class="text-danger mt-2" role="alert">{{ opml.storageError }}</p>
+      </div>
+      <div class="d-flex align-items-center">
+        <button class="btn btn-default mr-2" :disabled="!opml.file || opml.loading" @click="compareOPML()">
+          {{ opml.loading ? '对比中…' : '刷新对比结果' }}
+        </button>
       <button
         class="btn btn-primary"
         :disabled="!missingSubscriptions.length"
@@ -68,6 +90,7 @@ function exportMissingSubscriptions() {
       >
         导出不存在订阅
       </button>
+      </div>
       <div v-if="state.opmlCompareResult" class="mt-4">
         <!-- 使用表格展示对比结果信息 -->
         <table class="table table-bordered">
@@ -77,14 +100,18 @@ function exportMissingSubscriptions() {
               <th>订阅地址</th>
               <th>网站地址</th>
               <th>是否存在</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="result in state.opmlCompareResult" :key="result.url">
+            <tr v-for="(result, index) in state.opmlCompareResult" :key="index">
               <td>{{ result.title }}</td>
               <td class="text-center"><a :href="result.feedUrl" target="_blank">打开</a></td>
               <td class="text-center"><a v-if="result.siteUrl" :href="result.siteUrl" target="_blank">打开</a></td>
               <td class="text-center">{{ result.tip }}</td>
+              <td class="text-center">
+                <button v-if="result.tip === '不存在'" class="btn btn-sm btn-primary" :disabled="opml.loading" @click="addComparedFeed(result)">添加</button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -92,3 +119,12 @@ function exportMissingSubscriptions() {
     </div>
   </Modal>
 </template>
+
+<style scoped>
+.compare-opml-modal :deep(.modal-dialog) {
+  max-width: 1100px;
+  width: calc(100% - 2rem);
+  margin-right: auto;
+  margin-left: auto;
+}
+</style>

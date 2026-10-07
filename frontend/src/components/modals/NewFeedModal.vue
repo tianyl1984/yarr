@@ -4,6 +4,7 @@ import {
   state,
   current,
   createFeed,
+  closeCreateFeed,
   createNewFeedFolder,
   resetFeedChoice,
 } from '@/state/store.js'
@@ -25,11 +26,11 @@ function newFolder() {
 </script>
 
 <template>
-  <Modal :open="state.settings == 'create'" @hide="state.settings = ''">
+  <Modal :open="state.settings == 'create'" @hide="closeCreateFeed()">
     <button
       class="btn btn-link outline-none float-right p-2 mr-n2 mt-n2"
       style="line-height: 1"
-      @click="state.settings = ''"
+      @click="closeCreateFeed()"
     >
       <Icon name="x" />
     </button>
@@ -40,6 +41,7 @@ function newFolder() {
         <input
           id="feed-url"
           name="url"
+          v-model="state.feedNewUrl"
           type="url"
           class="form-control"
           required

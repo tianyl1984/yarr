@@ -11,7 +11,6 @@ import chevronUup from '../assets/icons/chevron-up.svg?raw'
 import circleUfull from '../assets/icons/circle-full.svg?raw'
 import circle from '../assets/icons/circle.svg?raw'
 import compare from '../assets/icons/compare.svg?raw'
-import download from '../assets/icons/download.svg?raw'
 import edit from '../assets/icons/edit.svg?raw'
 import externalUlink from '../assets/icons/external-link.svg?raw'
 import folderUminus from '../assets/icons/folder-minus.svg?raw'
@@ -28,7 +27,6 @@ import rss from '../assets/icons/rss.svg?raw'
 import search from '../assets/icons/search.svg?raw'
 import sliders from '../assets/icons/sliders.svg?raw'
 import trash from '../assets/icons/trash.svg?raw'
-import upload from '../assets/icons/upload.svg?raw'
 import x from '../assets/icons/x.svg?raw'
 
 export const icons = {
@@ -44,7 +42,6 @@ export const icons = {
   'circle-full': circleUfull,
   'circle': circle,
   'compare': compare,
-  'download': download,
   'edit': edit,
   'external-link': externalUlink,
   'folder-minus': folderUminus,
@@ -61,6 +58,5 @@ export const icons = {
   'search': search,
   'sliders': sliders,
   'trash': trash,
-  'upload': upload,
   'x': x,
 }

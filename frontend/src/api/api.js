@@ -118,17 +118,16 @@ export const api = {
   status: function () {
     return request('get', './api/status').then(json)
   },
-  upload_opml: function (form) {
-    return xfetch('./api/opml/import', {
-      method: 'post',
-      body: new FormData(form),
-    })
-  },
-  compare_opml: function (form) {
+  compare_opml: function (file) {
+    const body = new FormData()
+    body.append('opml', file)
     return xfetch('./api/opml/compare', {
       method: 'post',
-      body: new FormData(form),
-    }).then(json)
+      body,
+    }).then(function (res) {
+      if (!res.ok) throw new Error('OPML comparison failed')
+      return res.json()
+    })
   },
   logout: function () {
     return request('post', './api/logout')

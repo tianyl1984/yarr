@@ -48,8 +48,6 @@ func (s *Server) handler() http.Handler {
 	r.For("/api/items/:id", s.handleItem)
 	r.For("/api/settings", s.handleSettings)
 	r.For("/api/opml/compare", s.handleOPMLCompare)
-	r.For("/api/opml/import", s.handleOPMLImport)
-	r.For("/api/opml/export", s.handleOPMLExport)
 	r.For("/api/page", s.handlePageCrawl)
 	r.For("/api/htmlFeed", s.handleHtmlFeed)
 	r.For("/api/auth/callback", s.handleAuthCallback)
@@ -429,80 +427,6 @@ func (s *Server) handleOPMLCompare(c *router.Context) {
 		}
 	}
 	c.JSON(http.StatusOK, result)
-}
-
-func (s *Server) handleOPMLImport(c *router.Context) {
-	if c.Req.Method == "POST" {
-		file, _, err := c.Req.FormFile("opml")
-		if err != nil {
-			log.Print(err)
-			return
-		}
-		doc, err := opml.Parse(file)
-		if err != nil {
-			log.Print(err)
-			c.Out.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		for _, f := range doc.Feeds {
-			s.db.CreateFeed(f.Title, "", f.SiteUrl, f.FeedUrl, nil, false)
-		}
-		for _, f := range doc.Folders {
-			folder := s.db.CreateFolder(f.Title)
-			for _, ff := range f.AllFeeds() {
-				s.db.CreateFeed(ff.Title, "", ff.SiteUrl, ff.FeedUrl, &folder.Id, false)
-			}
-		}
-
-		s.worker.FindFavicons()
-		s.worker.RefreshFeeds()
-
-		c.Out.WriteHeader(http.StatusOK)
-	} else {
-		c.Out.WriteHeader(http.StatusMethodNotAllowed)
-	}
-}
-
-func (s *Server) handleOPMLExport(c *router.Context) {
-	if c.Req.Method == "GET" {
-		c.Out.Header().Set("Content-Type", "application/xml; charset=utf-8")
-		c.Out.Header().Set("Content-Disposition", `attachment; filename="subscriptions.opml"`)
-
-		doc := opml.Folder{}
-
-		feedsByFolderID := make(map[int64][]*storage.Feed)
-		for _, feed := range s.db.ListFeeds() {
-			feed := feed
-			if feed.FolderId == nil {
-				doc.Feeds = append(doc.Feeds, opml.Feed{
-					Title:   feed.Title,
-					FeedUrl: feed.FeedLink,
-					SiteUrl: feed.Link,
-				})
-			} else {
-				id := *feed.FolderId
-				feedsByFolderID[id] = append(feedsByFolderID[id], &feed)
-			}
-		}
-
-		for _, folder := range s.db.ListFolders() {
-			folderFeeds := feedsByFolderID[folder.Id]
-			if len(folderFeeds) == 0 {
-				continue
-			}
-			opmlfolder := opml.Folder{Title: folder.Title}
-			for _, feed := range folderFeeds {
-				opmlfolder.Feeds = append(opmlfolder.Feeds, opml.Feed{
-					Title:   feed.Title,
-					FeedUrl: feed.FeedLink,
-					SiteUrl: feed.Link,
-				})
-			}
-			doc.Folders = append(doc.Folders, opmlfolder)
-		}
-
-		c.Out.Write([]byte(doc.OPML()))
-	}
 }
 
 func (s *Server) handlePageCrawl(c *router.Context) {

@@ -1,11 +1,5 @@
 package opml
 
-import (
-	"fmt"
-	"html"
-	"strings"
-)
-
 type OpmlCompare struct {
 	Title   string `json:"title"`
 	FeedUrl string `json:"feedUrl"`
@@ -32,46 +26,4 @@ func (f Folder) AllFeeds() []Feed {
 		feeds = append(feeds, subfolder.AllFeeds()...)
 	}
 	return feeds
-}
-
-var e = html.EscapeString
-var indent = "  "
-var nl = "\n"
-
-func (f Folder) outline(level int) string {
-	builder := strings.Builder{}
-	prefix := strings.Repeat(indent, level)
-
-	if level > 0 {
-		builder.WriteString(prefix + fmt.Sprintf(`<outline text="%s">`+nl, e(f.Title)))
-	}
-	for _, folder := range f.Folders {
-		builder.WriteString(folder.outline(level + 1))
-	}
-	for _, feed := range f.Feeds {
-		builder.WriteString(feed.outline(level + 1))
-	}
-	if level > 0 {
-		builder.WriteString(prefix + `</outline>` + nl)
-	}
-	return builder.String()
-}
-
-func (f Feed) outline(level int) string {
-	return strings.Repeat(indent, level) + fmt.Sprintf(
-		`<outline type="rss" text="%s" xmlUrl="%s" htmlUrl="%s"/>`+nl,
-		e(f.Title), e(f.FeedUrl), e(f.SiteUrl),
-	)
-}
-
-func (f Folder) OPML() string {
-	builder := strings.Builder{}
-	builder.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + nl)
-	builder.WriteString(`<opml version="1.1">` + nl)
-	builder.WriteString(`<head><title>subscriptions</title></head>` + nl)
-	builder.WriteString(`<body>` + nl)
-	builder.WriteString(f.outline(0))
-	builder.WriteString(`</body>` + nl)
-	builder.WriteString(`</opml>` + nl)
-	return builder.String()
 }
