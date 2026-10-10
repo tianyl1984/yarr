@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { opml, compareOPML } from '@/state/opml.js'
+import { compareOPML } from '@/state/opml.js'
 import {
   state,
   showSettings,
@@ -22,7 +22,7 @@ function showFeedStates() {
 function openCompare() {
   menuDropdown.value.hide()
   state.settings = 'compare-opml'
-  if (opml.file) compareOPML()
+  compareOPML()
 }
 </script>
 

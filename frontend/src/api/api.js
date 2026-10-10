@@ -119,14 +119,22 @@ export const api = {
     return request('get', './api/status').then(json)
   },
   compare_opml: function (file) {
-    const body = new FormData()
-    body.append('opml', file)
+    let body
+    if (file) {
+      body = new FormData()
+      body.append('opml', file)
+    }
     return xfetch('./api/opml/compare', {
-      method: 'post',
+      method: file ? 'post' : 'get',
       body,
-    }).then(function (res) {
-      if (!res.ok) throw new Error('OPML comparison failed')
-      return res.json()
+    }).then(async function (res) {
+      const data = await res.json()
+      if (!res.ok) {
+        const error = new Error(data.error || '对比失败，请稍后重试。')
+        error.status = res.status
+        throw error
+      }
+      return data
     })
   },
   logout: function () {

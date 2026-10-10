@@ -73,14 +73,13 @@ function exportMissingSubscriptions() {
     <div>
       <p class="cursor-default"><b>Compare OPML</b></p>
       <div class="mb-3">
-        <label for="compare-opml-file">选择 OPML 文件</label>
+        <label for="compare-opml-file">选择 OPML 文件（最大 5 MiB）</label>
         <input id="compare-opml-file" type="file" accept=".opml,.xml" class="d-block" :disabled="opml.loading" @change="selectFile" />
-        <p v-if="opml.file" class="mt-2 mb-2">当前文件：{{ opml.file.name }}</p>
+        <p v-if="opml.filename" class="mt-2 mb-2">当前文件：{{ opml.filename }}</p>
         <p v-if="opml.error" class="text-danger mt-2" role="alert">{{ opml.error }}</p>
-        <p v-if="opml.storageError" class="text-danger mt-2" role="alert">{{ opml.storageError }}</p>
       </div>
       <div class="d-flex align-items-center">
-        <button class="btn btn-default mr-2" :disabled="!opml.file || opml.loading" @click="compareOPML()">
+        <button class="btn btn-default mr-2" :disabled="opml.loading" @click="compareOPML()">
           {{ opml.loading ? '对比中…' : '刷新对比结果' }}
         </button>
       <button

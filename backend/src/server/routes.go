@@ -1,9 +1,12 @@
 package server
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"reflect"
@@ -387,23 +390,61 @@ func (s *Server) handleSettings(c *router.Context) {
 	}
 }
 
+// Retain one file of at most 5 MiB; serialize uploads and parsing to bound
+// transient memory as well as the retained buffer.
+const maxOPMLSize = 5 << 20
+
 func (s *Server) handleOPMLCompare(c *router.Context) {
-	if c.Req.Method != "POST" {
+	if c.Req.Method != "POST" && c.Req.Method != "GET" {
 		c.Out.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	file, _, err := c.Req.FormFile("opml")
-	if err != nil {
-		log.Print(err)
+	s.opmlMutex.Lock()
+	defer s.opmlMutex.Unlock()
+	content, filename := s.opmlContent, s.opmlFilename
+	if c.Req.Method == "POST" {
+		c.Req.Body = http.MaxBytesReader(c.Out, c.Req.Body, maxOPMLSize+(64<<10))
+		defer c.Req.Body.Close()
+		err := c.Req.ParseMultipartForm(maxOPMLSize + (64 << 10))
+		if c.Req.MultipartForm != nil {
+			defer c.Req.MultipartForm.RemoveAll()
+		}
+		if err != nil {
+			var sizeErr *http.MaxBytesError
+			if errors.As(err, &sizeErr) {
+				c.JSON(http.StatusRequestEntityTooLarge, map[string]string{"error": "OPML 文件不能超过 5 MiB。"})
+			} else {
+				c.JSON(http.StatusBadRequest, map[string]string{"error": "请选择有效的 OPML 文件。"})
+			}
+			return
+		}
+		file, header, err := c.Req.FormFile("opml")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, map[string]string{"error": "请选择 OPML 文件。"})
+			return
+		}
+		defer file.Close()
+		if header.Size > maxOPMLSize {
+			c.JSON(http.StatusRequestEntityTooLarge, map[string]string{"error": "OPML 文件不能超过 5 MiB。"})
+			return
+		}
+		content, err = io.ReadAll(io.LimitReader(file, maxOPMLSize+1))
+		if err != nil || len(content) > maxOPMLSize {
+			c.JSON(http.StatusBadRequest, map[string]string{"error": "无法读取 OPML 文件。"})
+			return
+		}
+		filename = header.Filename
+	} else if len(content) == 0 {
+		c.JSON(http.StatusNotFound, map[string]string{"error": "服务端暂无对比文件，请重新选择（服务重启后文件会清空）。"})
 		return
 	}
-	doc, err := opml.Parse(file)
+	doc, err := opml.Parse(bytes.NewReader(content))
 	if err != nil {
-		log.Print(err)
-		c.Out.WriteHeader(http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, map[string]string{"error": "OPML 文件格式无效。"})
 		return
 	}
-	var result []opml.OpmlCompare
+	s.opmlContent, s.opmlFilename = content, filename
+	result := make([]opml.OpmlCompare, 0)
 	feeds := s.db.ListFeeds()
 	feedMap := make(map[string]storage.Feed)
 	for _, f := range feeds {
@@ -426,7 +467,7 @@ func (s *Server) handleOPMLCompare(c *router.Context) {
 			})
 		}
 	}
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, map[string]interface{}{"filename": filename, "results": result})
 }
 
 func (s *Server) handlePageCrawl(c *router.Context) {

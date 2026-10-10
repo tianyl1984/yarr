@@ -22,6 +22,10 @@ type Server struct {
 	cache       map[string]interface{}
 	cache_mutex *sync.Mutex
 
+	opmlMutex    sync.Mutex
+	opmlContent  []byte
+	opmlFilename string
+
 	// auth (cf-worker-auth SSO)
 	AuthURL    string
 	AuthSecret string
